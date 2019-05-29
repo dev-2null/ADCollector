@@ -7,7 +7,7 @@ using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
 //using System.DirectoryServices.ActiveDirectory.ActiveDirectoryPartition;
-
+using ConsoleTables;
 
 namespace ADCollector
 {
@@ -29,50 +29,103 @@ namespace ADCollector
 
             string rootDn = (string)rootEntry.Properties["defaultNamingContext"].Value;
 
-
-
+            
 
 
             ////Basic Info
 
-            Console.WriteLine("[-]Current Domain:        {0}\n", currentDomain.Name);
+            Console.WriteLine("[-] Current Domain:        {0}\n", currentDomain.Name);
             //int domainL = currentDomain.Name.Length;
             //int forestL = currentForest.Name.Length;
             //Console.WriteLine(domainL+ " -- " + forestL);
 
-            Console.WriteLine("[-]Current Forest:        {0}\n", currentForest.Name);
+            Console.WriteLine("[-] Current Forest:        {0}\n", currentForest.Name);
             Console.WriteLine("___________________________________________________________________________\n");
 
 
             //Domains
-            Console.WriteLine("[-]Domains in the current forest:\n");
+            Console.WriteLine("[-] Domains in the current forest:\n");
 
             foreach (Domain d in currentForest.Domains)
             {
-                Console.WriteLine(" * {0}\n", d.Name);
+                Console.WriteLine(" * {0}", d.Name);
+
+                //Console.WriteLine("DomainMode: {0}\n",d.DomainMode);
+                DirectoryEntry dEntry = d.GetDirectoryEntry();
+
+                using (dEntry)
+                {
+                    var objectSid = (byte[])dEntry.Properties["objectSid"][0];
+
+                    var domainSID = new SecurityIdentifier(objectSid,0);
+
+                    Console.WriteLine("   Domain SID:   "+ domainSID.ToString());
+
+                    Console.WriteLine();
+                    //var domainSID = new SecurityIdentifier(dEntry.Properties["objectSid"].Value);//.ObjectSecurity.);
+                }
             }
             Console.WriteLine("___________________________________________________________________________\n");
 
-
+            //$ADDomainSid = New-Object System.Security.Principal.SecurityIdentifier($objDomain.objectSid[0],0)
+            //$ADDomainSid.Value
 
 
 
             //DCs
-            Console.WriteLine("[-]Domain Controllers in the current domain:\n");
+            Console.WriteLine("[-] Domain Controllers in the current domain:\n");
 
             foreach (DomainController dc in currentDomain.FindAllDiscoverableDomainControllers())
             {
                 try
                 {
-                    Console.WriteLine(" * {0}", dc.Name);
-                    //if ((Int32)dc.GetDirectoryEntry().Properties["primaryGroupID"].Value == 516)
+                    string DCType = "";
+
+                    if (dc.IsGlobalCatalog())
+                    {
+                        DCType += "[Global Catalog] ";
+                    }
+
+                    using (DirectoryEntry dcServerEntry = dc.GetDirectoryEntry())
+                    {
+                        //Console.WriteLine(dcEntry.Properties["primaryGroupID"].Value);
+                        //Exception: Object reference not set to an instance of an object
+
+                        //https://stackoverflow.com/questions/34925136/why-property-primarygroupid-missing-for-domain-controller
+                        //dc.GetDirectoryEntry() returns a server object, not the computer object of DC
+                        //primaryGroupID does not exist on server object
+
+                        using (DirectoryEntry dcEntry = new DirectoryEntry("LDAP://" + dcServerEntry.Properties["serverReference"].Value))
+                        {
+                            //Check if the primaryGroupID attribute has a value of 521 (Read-Only Domain Controller)
+                            if ((int)dcEntry.Properties["primaryGroupID"].Value == 521)
+                            {
+                                DCType += "[Read-Only Domain Controller]";
+                            }
+                        }
+                    }
+
+                    Console.WriteLine(" * {0}  {1}", dc.Name,DCType);
+                    Console.WriteLine("   IPAddress\t\t\t:  {0}",dc.IPAddress);
+                    Console.WriteLine("   OS\t\t\t\t:  {0}",dc.OSVersion);
+                    Console.WriteLine("   Site\t\t\t\t:  {0}",dc.SiteName);
+
+                    //string partitions = "";
+                    //foreach (var partition in dc.Partitions)
                     //{
-                    //    Console.WriteLine(" * {0}  [Read-Only DC]", dc.Name);
+                    //    partitions += partition +"   ";
                     //}
-                    //else
-                    //{
-                    //    Console.WriteLine(" * {0}", dc.Name);
-                    //}
+                    //Console.WriteLine("   Partitions\t\t\t:  {0}",partitions);
+
+                    string roles = "";
+
+                    foreach (var role in dc.Roles)
+                    {
+                        roles += role + "   ";
+                    }
+                    Console.WriteLine("   Roles\t\t\t:  {0}",roles);
+
+                    Console.WriteLine();
 
                 }
                 catch (Exception e) { Console.WriteLine("Exception: "+e.Message); }
@@ -82,13 +135,13 @@ namespace ADCollector
 
 
 
-            GetDomainTrust(currentDomain);
-            GetForestTrust(currentForest);
+            //GetDomainTrust(currentDomain);
+            //GetForestTrust(currentForest);
             //GetUnconstrained(rootDn);
             //GetMSSQL(currentForest);
             //GetGPOs(currentDomain, rootDn);
 
-            GetConfiAttri(rootEntry);
+            //GetConfiAttri(rootEntry);
 
 
 
@@ -128,12 +181,6 @@ namespace ADCollector
 
 
 
-
-
-
-
-
-
         public static void PrintBanner()
         {
             Console.WriteLine(@"    _    ____   ____      _ _           _             ");
@@ -144,31 +191,47 @@ namespace ADCollector
             Console.WriteLine();
         }
 
-
-
  
         //Domain trusts
 
         public static void GetDomainTrust(Domain currentDomain)
         {
-            Console.WriteLine("[-]Trust Relationship in the current domain:\n");
+            Console.WriteLine("[-] Trust Relationship in the current domain:\n");
 
-            Console.WriteLine("{0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            //https://github.com/khalidabuhakmeh/ConsoleTables/blob/master/src/ConsoleTables/ConsoleTable.cs
+
+            var domtable = new ConsoleTable("Source", "Target", "TrustType", "TrustDirection","SID Filtering");
+
+            var sidStatus = "";
+
+            //Console.WriteLine("{0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
 
             foreach (TrustRelationshipInformation trustInfo in currentDomain.GetAllTrustRelationships())
             {
-
-                Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
-
                 if (currentDomain.GetSidFilteringStatus(trustInfo.TargetName))
                 {
-                    Console.WriteLine("[SID Filtering is enabled]\n");
+                    sidStatus = "[SID Filtering is enabled]\n";
                 }
                 else
                 {
-                    Console.WriteLine("[Not Filtering SIDs]\n");
+                    sidStatus = "[Not Filtering SIDs]\n";
                 }
+
+                domtable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection,sidStatus);
+
+                //Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
+
+                //if (currentDomain.GetSidFilteringStatus(trustInfo.TargetName))
+                //{
+                //    Console.WriteLine("[SID Filtering is enabled]\n");
+                //}
+                //else
+                //{
+                //    Console.WriteLine("[Not Filtering SIDs]\n");
+                //}
             }
+
+            Console.WriteLine(domtable);
             Console.WriteLine("___________________________________________________________________________\n");
 
         }
@@ -179,31 +242,56 @@ namespace ADCollector
 
         public static void GetForestTrust(Forest currentForest)
         {
-            Console.WriteLine("[-]Trust Relationship in the current forest:\n");
+            Console.WriteLine("[-] Trust Relationship in the current forest:\n");
 
-            Console.WriteLine("{0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            var foresttable = new ConsoleTable("Source", "Target", "TrustType", "TrustDirection", "SID Filtering");
+
+            var sidStatus = "";
 
             foreach (TrustRelationshipInformation trustInfo in currentForest.GetAllTrustRelationships())
             {
-                Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
                 try
                 {
                     if (currentForest.GetSidFilteringStatus(trustInfo.TargetName))
                     {
-                        Console.WriteLine("[SID Filtering is enabled]\n");
+                        sidStatus = "[SID Filtering is enabled]\n";
                     }
                     else
                     {
-                        Console.WriteLine("[Not Filtering SIDs]\n");
+                        sidStatus = "[Not Filtering SIDs]\n";
                     }
                 }
-                catch (Exception e) //Forest trust relationship does not exist???
+                catch (Exception e)
                 {
+                    sidStatus = "";
                     Console.WriteLine("Something wrong with SID filtering");
-                    Console.WriteLine("Error: {0}\n",e.Message);
+
+                    Console.WriteLine("Error: {0}\n", e.Message);
                 }
 
+
+                foresttable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
+
+                //Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
+                //try
+                //{
+                //    if (currentForest.GetSidFilteringStatus(trustInfo.TargetName))
+                //    {
+                //        Console.WriteLine("[SID Filtering is enabled]\n");
+                //    }
+                //    else
+                //    {
+                //        Console.WriteLine("[Not Filtering SIDs]\n");
+                //    }
+                //}
+                //catch (Exception e) //Forest trust relationship does not exist???
+                //{
+                //    Console.WriteLine("Something wrong with SID filtering");
+                //    Console.WriteLine("Error: {0}\n",e.Message);
+                //}
+
             }
+            Console.WriteLine(foresttable);
             Console.WriteLine("___________________________________________________________________________\n");
         }
 
@@ -213,7 +301,7 @@ namespace ADCollector
 
         public static void GetUnconstrained(string rootDn)
         {
-            Console.WriteLine("[-]Unconstrained Delegation Accounts:");
+            Console.WriteLine("[-] Unconstrained Delegation Accounts:");
             Console.WriteLine();
 
             DirectoryEntry entry = new DirectoryEntry("LDAP://" + rootDn);
@@ -221,6 +309,7 @@ namespace ADCollector
             using (entry)
             {
                 //Search accounts with TRUSTED_FOR_DELEGATION flag set
+
                 string queryUncon = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";//excluding DCs
 
                 DirectorySearcher unconSearch = new DirectorySearcher(entry, queryUncon);
@@ -257,6 +346,8 @@ namespace ADCollector
 
         public static void GetMSSQL(Forest currentForest)
         {
+            Console.WriteLine("[-] MSSQL Accounts:");
+            Console.WriteLine();
 
             string gcDn = "DC=" + currentForest.Name.Replace(".", ",DC=");
 
