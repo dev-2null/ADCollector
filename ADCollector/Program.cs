@@ -18,18 +18,22 @@ namespace ADCollector
             //PrintBanner();
             Console.WriteLine();
 
-
-
-
             Domain currentDomain = Domain.GetCurrentDomain();
 
             Forest currentForest = Forest.GetCurrentForest();
 
             DirectoryEntry rootEntry = new DirectoryEntry("LDAP://rootDSE");
 
-            string rootDn = (string)rootEntry.Properties["defaultNamingContext"].Value;
 
-            
+            string rootDn = (string)rootEntry.Properties["defaultNamingContext"].Value;
+            //Domain Entry
+            DirectoryEntry entry = new DirectoryEntry("LDAP://" + rootDn);
+
+
+            string forestDn = "DC=" + currentForest.Name.Replace(".", ",DC=");
+            //Forest Entry
+            DirectoryEntry forestEntry = new DirectoryEntry("LDAP://" + forestDn);
+
 
 
             ////Basic Info
@@ -72,77 +76,17 @@ namespace ADCollector
 
 
 
-            //DCs
-            Console.WriteLine("[-] Domain Controllers in the current domain:\n");
-
-            foreach (DomainController dc in currentDomain.FindAllDiscoverableDomainControllers())
-            {
-                try
-                {
-                    string DCType = "";
-
-                    if (dc.IsGlobalCatalog())
-                    {
-                        DCType += "[Global Catalog] ";
-                    }
-
-                    using (DirectoryEntry dcServerEntry = dc.GetDirectoryEntry())
-                    {
-                        //Console.WriteLine(dcEntry.Properties["primaryGroupID"].Value);
-                        //Exception: Object reference not set to an instance of an object
-
-                        //https://stackoverflow.com/questions/34925136/why-property-primarygroupid-missing-for-domain-controller
-                        //dc.GetDirectoryEntry() returns a server object, not the computer object of DC
-                        //primaryGroupID does not exist on server object
-
-                        using (DirectoryEntry dcEntry = new DirectoryEntry("LDAP://" + dcServerEntry.Properties["serverReference"].Value))
-                        {
-                            //Check if the primaryGroupID attribute has a value of 521 (Read-Only Domain Controller)
-                            if ((int)dcEntry.Properties["primaryGroupID"].Value == 521)
-                            {
-                                DCType += "[Read-Only Domain Controller]";
-                            }
-                        }
-                    }
-
-                    Console.WriteLine(" * {0}  {1}", dc.Name,DCType);
-                    Console.WriteLine("   IPAddress\t\t\t:  {0}",dc.IPAddress);
-                    Console.WriteLine("   OS\t\t\t\t:  {0}",dc.OSVersion);
-                    Console.WriteLine("   Site\t\t\t\t:  {0}",dc.SiteName);
-
-                    //string partitions = "";
-                    //foreach (var partition in dc.Partitions)
-                    //{
-                    //    partitions += partition +"   ";
-                    //}
-                    //Console.WriteLine("   Partitions\t\t\t:  {0}",partitions);
-
-                    string roles = "";
-
-                    foreach (var role in dc.Roles)
-                    {
-                        roles += role + "   ";
-                    }
-                    Console.WriteLine("   Roles\t\t\t:  {0}",roles);
-
-                    Console.WriteLine();
-
-                }
-                catch (Exception e) { Console.WriteLine("Exception: "+e.Message); }
-            }
-            Console.WriteLine("___________________________________________________________________________\n");
-
 
 
 
             //GetDomainTrust(currentDomain);
             //GetForestTrust(currentForest);
-            //GetUnconstrained(rootDn);
+            //GetUnconstrained(entry);
             //GetMSSQL(currentForest);
             //GetGPOs(currentDomain, rootDn);
-
             //GetConfiAttri(rootEntry);
-
+            //GetDCs(currentDomain);
+            GetPrivUsers(entry, forestEntry);
 
 
 
@@ -192,8 +136,88 @@ namespace ADCollector
         }
 
  
-        //Domain trusts
 
+        /// <summary>
+        /// Gets the DC.
+        /// </summary>
+        /// <param name="currentDomain">Current domain.</param>
+        public static void GetDCs(Domain currentDomain)
+        {
+            //DCs
+            Console.WriteLine("[-] Domain Controllers in the current domain:\n");
+
+            //foreach (DomainController dc in currentDomain.FindAllDomainControllers())
+            foreach (DomainController dc in currentDomain.FindAllDiscoverableDomainControllers())
+            {
+                try
+                {
+                    string DCType = "";
+
+                    if (dc.IsGlobalCatalog())
+                    {
+                        DCType += "[Global Catalog] ";
+                    }
+
+                    using (DirectoryEntry dcServerEntry = dc.GetDirectoryEntry())
+                    {
+                        //Console.WriteLine(dcEntry.Properties["primaryGroupID"].Value);
+                        //Exception: Object reference not set to an instance of an object
+
+                        //https://stackoverflow.com/questions/34925136/why-property-primarygroupid-missing-for-domain-controller
+                        //dc.GetDirectoryEntry() returns a server object, not the computer object of DC
+                        //primaryGroupID does not exist on server object
+
+                        using (DirectoryEntry dcEntry = new DirectoryEntry("LDAP://" + dcServerEntry.Properties["serverReference"].Value))
+                        {
+                            //Check if the primaryGroupID attribute has a value of 521 (Read-Only Domain Controller)
+                            if ((int)dcEntry.Properties["primaryGroupID"].Value == 521)
+                            {
+                                DCType += "[Read-Only Domain Controller]";
+                            }
+                        }
+                    }
+
+                    Console.WriteLine(" * {0}  {1}", dc.Name, DCType);
+                    Console.WriteLine("   IPAddress\t\t\t:  {0}", dc.IPAddress);
+                    Console.WriteLine("   OS\t\t\t\t:  {0}", dc.OSVersion);
+                    Console.WriteLine("   Site\t\t\t\t:  {0}", dc.SiteName);
+
+                    //string partitions = "";
+                    //foreach (var partition in dc.Partitions)
+                    //{
+                    //    partitions += partition +"   ";
+                    //}
+                    //Console.WriteLine("   Partitions\t\t\t:  {0}",partitions);
+
+                    string roles = "";
+
+                    foreach (var role in dc.Roles)
+                    {
+                        roles += role + "   ";
+                    }
+                    Console.WriteLine("   Roles\t\t\t:  {0}", roles);
+
+                    Console.WriteLine();
+
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine(" * {0}:  RPC server is unavailable.", dc.Name);
+                    //Console.WriteLine("Exception: "+e.Message); 
+                }
+            }
+            Console.WriteLine("___________________________________________________________________________\n");
+
+        }
+
+
+
+
+        //Domain trusts
+        /// <summary>
+        /// Gets the domain trust.
+        /// </summary>
+        /// <param name="currentDomain">Current domain.</param>
         public static void GetDomainTrust(Domain currentDomain)
         {
             Console.WriteLine("[-] Trust Relationship in the current domain:\n");
@@ -239,7 +263,10 @@ namespace ADCollector
 
 
         //Forest trusts
-
+        /// <summary>
+        /// Gets the forest trust.
+        /// </summary>
+        /// <param name="currentForest">Current forest.</param>
         public static void GetForestTrust(Forest currentForest)
         {
             Console.WriteLine("[-] Trust Relationship in the current forest:\n");
@@ -297,30 +324,129 @@ namespace ADCollector
 
 
 
-        //Unconstrained Delegation
+        ///// <summary>
+        /// Gets the priv users.
+        /// </summary>
+        /// <param name="entry">Entry.</param>
+        /// <param name="forestEntry">Forest entry.</param>
+        //DAs EAs
+        public static void GetPrivUsers(DirectoryEntry entry, DirectoryEntry forestEntry)
+        {
+            Console.WriteLine("[-] Privileged Users/Groups:");
+            Console.WriteLine();
 
-        public static void GetUnconstrained(string rootDn)
+            ////Admin groups
+            //Console.WriteLine(" * Admin Groups:");
+            //string queryAdminGroup = @"(&(objectClass=group)(name=*admin*))";
+            //DirectorySearcher searchAdminGroup = new DirectorySearcher(entry, queryAdminGroup);
+
+            //using (SearchResultCollection adminGroups = searchAdminGroup.FindAll())
+            //{
+            //    foreach (SearchResult adminGroup in adminGroups)
+            //    {
+            //        Console.WriteLine("   {0}",adminGroup.Properties["name"][0]);
+            //    }
+            //}
+            //Console.WriteLine();
+
+
+           
+            //Domain Admins
+            Console.WriteLine(" * Domain Admins:");
+            string queryDAGroup = @"(&(objectClass=group)(name=Domain Admins))";
+            DirectorySearcher searchDAGroup = new DirectorySearcher(entry);
+            searchDAGroup.Filter = queryDAGroup;
+            var DAgroup = searchDAGroup.FindOne();
+
+
+            //string queryDAusers = @"(&(memberof:1.2.840.113556.1.4.1941:="+ DAgroup.Path.Replace("LDAP://","")+ @")(objectCategory=user))";
+            //Console.WriteLine(queryDAusers);
+            //searchDAGroup.Filter = queryDAusers;
+            //searchDAGroup.PropertiesToLoad.Add("sAMAccountName");
+            //SearchResultCollection DAs = searchDAGroup.FindAll();
+            //foreach (SearchResult DA in DAs)
+            //{
+            //    Console.WriteLine(DA.Path); //Properties["sAMAccountName"][0]);
+            //}
+
+
+            foreach (var da in DAgroup.Properties["member"])
+            {
+                Console.WriteLine("   {0}",da);
+            }
+            Console.WriteLine();
+
+
+
+            //Enterprise Admins
+            Console.WriteLine(" * Enterprise Admins:");
+            string queryEAGroup = @"(&(objectClass=group)(name=Enterprise Admins))";
+            DirectorySearcher searchEAGroup = new DirectorySearcher(forestEntry);//, queryEAGroup);
+            searchEAGroup.Filter = queryEAGroup;
+            var EAgroup = searchEAGroup.FindOne();
+
+            //string queryEAusers = @"(&(memberof:1.2.840.113556.1.4.1941:=" + EAgroup.Path.Replace("LDAP://", "") + @")(objectCategory=user))";
+            //Console.WriteLine(queryEAusers);
+            //searchEAGroup.Filter = queryEAusers;
+            //searchEAGroup.PropertiesToLoad.Add("sAMAccountName");
+            //SearchResultCollection EAs = searchEAGroup.FindAll();
+            //foreach (SearchResult EA in EAs)
+            //{
+            //    Console.WriteLine(EA.Path); //Properties["sAMAccountName"][0]);
+            //}
+
+            foreach (var ea in EAgroup.Properties["member"])
+            {
+                Console.WriteLine("   {0}",ea);
+            }
+            Console.WriteLine();
+
+
+            ////
+            //Console.WriteLine(" * Domain Admins:");
+            //string queryDAGroup = @"(&(objectClass=group)(name=Domain Admins))";
+            //DirectorySearcher searchDAGroup = new DirectorySearcher(entry, queryDAGroup);
+            //var DAs = searchDAGroup.FindOne();
+
+            //foreach (var da in DAs.Properties["member"])
+            //{
+            //    Console.WriteLine("   {0}", da);
+            //}
+            //Console.WriteLine();
+
+
+
+        }
+
+
+
+        //Unconstrained Delegation
+        /// <summary>
+        /// Gets the unconstrained.
+        /// </summary>
+        /// <param name="entry">Entry.</param>
+        public static void GetUnconstrained(DirectoryEntry entry)
         {
             Console.WriteLine("[-] Unconstrained Delegation Accounts:");
             Console.WriteLine();
 
-            DirectoryEntry entry = new DirectoryEntry("LDAP://" + rootDn);
+            //DirectoryEntry entry = new DirectoryEntry("LDAP://" + rootDn);
 
-            using (entry)
+            //using (entry)
+            //{
+            //Search accounts with TRUSTED_FOR_DELEGATION flag set
+
+            string queryUncon = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";//excluding DCs
+
+            DirectorySearcher unconSearch = new DirectorySearcher(entry, queryUncon);
+
+            unconSearch.PropertiesToLoad.Add("sAMAccountName");
+
+            foreach (SearchResult sr in unconSearch.FindAll())
             {
-                //Search accounts with TRUSTED_FOR_DELEGATION flag set
-
-                string queryUncon = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";//excluding DCs
-
-                DirectorySearcher unconSearch = new DirectorySearcher(entry, queryUncon);
-
-                unconSearch.PropertiesToLoad.Add("sAMAccountName");
-
-                foreach (SearchResult sr in unconSearch.FindAll())
-                {
-                    Console.WriteLine(" * {0}\n\n   LDAP Path:    {1}\n", sr.Properties["sAMAccountName"][0], sr.Path.Replace("LDAP://", ""));
-                }
+                Console.WriteLine(" * {0}\n\n   LDAP Path:    {1}\n", sr.Properties["sAMAccountName"][0], sr.Path.Replace("LDAP://", ""));
             }
+            //}
 
             //
             //string searchUser = @"(|(objectCategory=Computer)(&(objectCategory=person)(sAMAccountName=*)))";
@@ -343,7 +469,10 @@ namespace ADCollector
 
 
         //SPN Scanning to discover MSSQL in the forest
-
+        /// <summary>
+        /// Gets the mssql.
+        /// </summary>
+        /// <param name="currentForest">Current forest.</param>
         public static void GetMSSQL(Forest currentForest)
         {
             Console.WriteLine("[-] MSSQL Accounts:");
@@ -391,6 +520,11 @@ namespace ADCollector
 
 
         //GPOs
+        /// <summary>
+        /// Gets the GPO.
+        /// </summary>
+        /// <param name="currentDomain">Current domain.</param>
+        /// <param name="rootDn">Root dn.</param>
         public static void GetGPOs(Domain currentDomain, string rootDn)
         {
             Console.WriteLine("[-] Group Policies in the current domain:\n");
@@ -429,8 +563,14 @@ namespace ADCollector
         }
 
 
+
+
         //Hidden attributes from [MS-ADTS] Section 3.1.1.2.3
         //Search Flags  CF (fCONFIDENTIAL,0x00000080)
+        /// <summary>
+        /// Gets the confi attri.
+        /// </summary>
+        /// <param name="rootEntry">Root entry.</param>
         public static void GetConfiAttri(DirectoryEntry rootEntry)
         {
 
