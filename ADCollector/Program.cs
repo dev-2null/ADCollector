@@ -101,16 +101,14 @@ namespace ADCollector
 
 
 
-
+            GetDCs(currentDomain);
             GetDomainTrust(currentDomain);
             GetForestTrust(currentForest);
             GetUnconstrained(entry);
             GetMSSQL(currentForest);
-            GetGPOs(currentDomain, rootDn);
             GetConfiAttri(rootEntry);
-            GetDCs(currentDomain);
+            GetGPOs(currentDomain, rootDn);
             GetPrivUsers(entry, forestEntry);
-
 
 
             Console.WriteLine();
@@ -266,7 +264,7 @@ namespace ADCollector
 
                 //domtable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
 
-                //Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
+                Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
 
                 if (currentDomain.GetSidFilteringStatus(trustInfo.TargetName))
                 {
