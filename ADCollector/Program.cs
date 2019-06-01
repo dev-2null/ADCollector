@@ -79,13 +79,13 @@ namespace ADCollector
 
 
 
-            //GetDomainTrust(currentDomain);
-            //GetForestTrust(currentForest);
-            //GetUnconstrained(entry);
-            //GetMSSQL(currentForest);
-            //GetGPOs(currentDomain, rootDn);
-            //GetConfiAttri(rootEntry);
-            //GetDCs(currentDomain);
+            GetDomainTrust(currentDomain);
+            GetForestTrust(currentForest);
+            GetUnconstrained(entry);
+            GetMSSQL(currentForest);
+            GetGPOs(currentDomain, rootDn);
+            GetConfiAttri(rootEntry);
+            GetDCs(currentDomain);
             GetPrivUsers(entry, forestEntry);
 
 
@@ -525,6 +525,7 @@ namespace ADCollector
         /// </summary>
         /// <param name="currentDomain">Current domain.</param>
         /// <param name="rootDn">Root dn.</param>
+        /// Show certain set of GPO on the current machine [gpresult /R]
         public static void GetGPOs(Domain currentDomain, string rootDn)
         {
             Console.WriteLine("[-] Group Policies in the current domain:\n");
@@ -539,7 +540,8 @@ namespace ADCollector
                 {
                     string gpoPath = "\\\\" + currentDomain.Name + "\\SYSVOL\\" + currentDomain.Name + "\\Policies\\" + gpo.Name.Replace("CN=", "");
 
-                    Console.WriteLine(gpoPath);
+                    //gpo.Name : CN={*******-****-****-****-***********}
+                    Console.WriteLine(" * GPO Name: {0}\n   {1}\n", gpo.Properties["displayName"][0], gpo.Name);
 
                     foreach (FileSystemAccessRule fsar in File.GetAccessControl(gpoPath).GetAccessRules(true, true, typeof(NTAccount)))
                     {
@@ -555,7 +557,7 @@ namespace ADCollector
                         Console.WriteLine();
                     }
 
-                    Console.WriteLine(" * GPO Name: {0}\n   {1}\n", gpo.Properties["displayName"][0].ToString(), gpo.Name);
+
                 }
             }
             Console.WriteLine("___________________________________________________________________________\n");
