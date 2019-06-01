@@ -7,7 +7,7 @@ using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
 //using System.DirectoryServices.ActiveDirectory.ActiveDirectoryPartition;
-using ConsoleTables;
+//using ConsoleTables;
 
 namespace ADCollector
 {
@@ -52,22 +52,45 @@ namespace ADCollector
 
             foreach (Domain d in currentForest.Domains)
             {
-                Console.WriteLine(" * {0}", d.Name);
-
-                //Console.WriteLine("DomainMode: {0}\n",d.DomainMode);
-                DirectoryEntry dEntry = d.GetDirectoryEntry();
-
-                using (dEntry)
+                try
                 {
-                    var objectSid = (byte[])dEntry.Properties["objectSid"][0];
+                    Console.WriteLine(" * {0}", d.Name);
 
-                    var domainSID = new SecurityIdentifier(objectSid,0);
+                    //Console.WriteLine("DomainMode: {0}\n",d.DomainMode);
+                    DirectoryEntry dEntry = d.GetDirectoryEntry();
 
-                    Console.WriteLine("   Domain SID:   "+ domainSID.ToString());
+                    using (dEntry)
+                    {
+                        var objectSid = (byte[])dEntry.Properties["objectSid"][0];
 
-                    Console.WriteLine();
-                    //var domainSID = new SecurityIdentifier(dEntry.Properties["objectSid"].Value);//.ObjectSecurity.);
+                        var domainSID = new SecurityIdentifier(objectSid, 0);
+
+                        Console.WriteLine("   Domain SID:   " + domainSID.ToString());
+
+                        Console.WriteLine();
+                        //var domainSID = new SecurityIdentifier(dEntry.Properties["objectSid"].Value);//.ObjectSecurity.);
+                    }
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.GetType().Name + " : " + e.Message);
+                }
+                //Console.WriteLine(" * {0}", d.Name);
+
+                ////Console.WriteLine("DomainMode: {0}\n",d.DomainMode);
+                //DirectoryEntry dEntry = d.GetDirectoryEntry();
+
+                //using (dEntry)
+                //{
+                //    var objectSid = (byte[])dEntry.Properties["objectSid"][0];
+
+                //    var domainSID = new SecurityIdentifier(objectSid, 0);
+
+                //    Console.WriteLine("   Domain SID:   " + domainSID.ToString());
+
+                //    Console.WriteLine();
+                //    //var domainSID = new SecurityIdentifier(dEntry.Properties["objectSid"].Value);//.ObjectSecurity.);
+                //}
             }
             Console.WriteLine("___________________________________________________________________________\n");
 
@@ -135,7 +158,7 @@ namespace ADCollector
             Console.WriteLine();
         }
 
- 
+
 
         /// <summary>
         /// Gets the DC.
@@ -224,11 +247,11 @@ namespace ADCollector
 
             //https://github.com/khalidabuhakmeh/ConsoleTables/blob/master/src/ConsoleTables/ConsoleTable.cs
 
-            var domtable = new ConsoleTable("Source", "Target", "TrustType", "TrustDirection","SID Filtering");
+            //var domtable = new ConsoleTable("Source", "Target", "TrustType", "TrustDirection", "SID Filtering");
 
             var sidStatus = "";
 
-            //Console.WriteLine("{0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            Console.WriteLine("{0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
 
             foreach (TrustRelationshipInformation trustInfo in currentDomain.GetAllTrustRelationships())
             {
@@ -241,21 +264,21 @@ namespace ADCollector
                     sidStatus = "[Not Filtering SIDs]\n";
                 }
 
-                domtable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection,sidStatus);
+                //domtable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
 
                 //Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
 
-                //if (currentDomain.GetSidFilteringStatus(trustInfo.TargetName))
-                //{
-                //    Console.WriteLine("[SID Filtering is enabled]\n");
-                //}
-                //else
-                //{
-                //    Console.WriteLine("[Not Filtering SIDs]\n");
-                //}
+                if (currentDomain.GetSidFilteringStatus(trustInfo.TargetName))
+                {
+                    Console.WriteLine("[SID Filtering is enabled]\n");
+                }
+                else
+                {
+                    Console.WriteLine("[Not Filtering SIDs]\n");
+                }
             }
 
-            Console.WriteLine(domtable);
+            //Console.WriteLine(domtable);
             Console.WriteLine("___________________________________________________________________________\n");
 
         }
@@ -271,7 +294,7 @@ namespace ADCollector
         {
             Console.WriteLine("[-] Trust Relationship in the current forest:\n");
 
-            var foresttable = new ConsoleTable("Source", "Target", "TrustType", "TrustDirection", "SID Filtering");
+            //var foresttable = new ConsoleTable("Source", "Target", "TrustType", "TrustDirection", "SID Filtering");
 
             var sidStatus = "";
 
@@ -297,28 +320,28 @@ namespace ADCollector
                 }
 
 
-                foresttable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
+                //foresttable.AddRow(trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
 
-                //Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
-                //try
-                //{
-                //    if (currentForest.GetSidFilteringStatus(trustInfo.TargetName))
-                //    {
-                //        Console.WriteLine("[SID Filtering is enabled]\n");
-                //    }
-                //    else
-                //    {
-                //        Console.WriteLine("[Not Filtering SIDs]\n");
-                //    }
-                //}
-                //catch (Exception e) //Forest trust relationship does not exist???
-                //{
-                //    Console.WriteLine("Something wrong with SID filtering");
-                //    Console.WriteLine("Error: {0}\n",e.Message);
-                //}
+                Console.Write("{0,-30}{1,-30}{2,-15}{3,-20}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection);
+                try
+                {
+                    if (currentForest.GetSidFilteringStatus(trustInfo.TargetName))
+                    {
+                        Console.WriteLine("[SID Filtering is enabled]\n");
+                    }
+                    else
+                    {
+                        Console.WriteLine("[Not Filtering SIDs]\n");
+                    }
+                }
+                catch (Exception e) //Forest trust relationship does not exist???
+                {
+                    Console.WriteLine("Something wrong with SID filtering");
+                    Console.WriteLine("Error: {0}\n", e.Message);
+                }
 
             }
-            Console.WriteLine(foresttable);
+            //Console.WriteLine(foresttable);
             Console.WriteLine("___________________________________________________________________________\n");
         }
 
@@ -350,7 +373,7 @@ namespace ADCollector
             //Console.WriteLine();
 
 
-           
+
             //Domain Admins
             Console.WriteLine(" * Domain Admins:");
             string queryDAGroup = @"(&(objectClass=group)(name=Domain Admins))";
@@ -372,7 +395,7 @@ namespace ADCollector
 
             foreach (var da in DAgroup.Properties["member"])
             {
-                Console.WriteLine("   {0}",da);
+                Console.WriteLine("   {0}", da);
             }
             Console.WriteLine();
 
@@ -397,7 +420,7 @@ namespace ADCollector
 
             foreach (var ea in EAgroup.Properties["member"])
             {
-                Console.WriteLine("   {0}",ea);
+                Console.WriteLine("   {0}", ea);
             }
             Console.WriteLine();
 
@@ -592,7 +615,7 @@ namespace ADCollector
 
                 foreach (SearchResult sr in confiSearch.FindAll())
                 {
-                    Console.WriteLine(" * {0}",sr.Properties["Name"][0]);
+                    Console.WriteLine(" * {0}", sr.Properties["Name"][0]);
                 }
             }
 
