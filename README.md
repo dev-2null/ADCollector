@@ -21,4 +21,4 @@ _**This tool is still under construction.**_
 
 ## Info
 For more information (current progress/Todo list/etc) about this tool, you can visit my project page: 
-**https://github.com/dev-2null/ADCollector/projects**
+**https://github.com/dev-2null/ADCollector/projects/1**
