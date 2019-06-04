@@ -1,10 +1,10 @@
 # ADCollector
-ADCollector is a lightweight tool that enumerates the Active Directory environment to identify possible attack vectors. The aim of developing this tool is to help me learn more about the Active Directory security.
+ADCollector is a lightweight tool that enumerates the Active Directory environment to identify possible attack vectors. The aim of developing this tool is to help me learn more about Active Directory security in a different perspective. I just started learning .NET with C#, the code could be really terrible~
 
 
 It currently uses S.DS namespace to retrieve information from the domain controller(LDAP server). 
 
-* This tool is still under construction.
+_**This tool is still under construction.**_
 
 
 ## Current progress
