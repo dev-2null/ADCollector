@@ -15,7 +15,8 @@ namespace ADCollector
     {
         static void Main(string[] args)
         {
-            //PrintBanner();
+            Console.WriteLine();
+            PrintBanner();
             Console.WriteLine();
 
             Domain currentDomain = Domain.GetCurrentDomain();
@@ -99,8 +100,6 @@ namespace ADCollector
 
 
 
-
-
             GetDCs(currentDomain);
             GetDomainTrust(currentDomain);
             GetForestTrust(currentForest);
@@ -148,12 +147,12 @@ namespace ADCollector
 
         public static void PrintBanner()
         {
-            Console.WriteLine(@"    _    ____   ____      _ _           _             ");
-            Console.WriteLine(@"   / \  |  _ \ / ___|___ | | | ___  ___| |_ ___  _ __ ");
-            Console.WriteLine(@"  / _ \ | | | | |   / _ \| | |/ _ \/ __| __/ _ \| '__|");
-            Console.WriteLine(@" / ___ \| |_| | |__| (_) | | |  __/ (__| || (_) | |   ");
-            Console.WriteLine(@"/_/   \_\____/ \____\___/|_|_|\___|\___|\__\___/|_|   ");
-            Console.WriteLine();
+            Console.WriteLine(@"      _    ____   ____      _ _           _             ");
+            Console.WriteLine(@"     / \  |  _ \ / ___|___ | | | ___  ___| |_ ___  _ __ ");
+            Console.WriteLine(@"    / _ \ | | | | |   / _ \| | |/ _ \/ __| __/ _ \| '__|");
+            Console.WriteLine(@"   / ___ \| |_| | |__| (_) | | |  __/ (__| || (_) | |   ");
+            Console.WriteLine(@"  /_/   \_\____/ \____\___/|_|_|\___|\___|\__\___/|_|   ");
+            Console.WriteLine("   v1.0.0 \r\n");
         }
 
 
