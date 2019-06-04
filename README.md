@@ -61,13 +61,11 @@ Why not just:
 new LdapConnection(domainController)
 ```
 
-* Limits the number of attributes returned
-Difference between
-
+* Limits the number of attributes returned (Differences)
+* 
 ```C#
 SearchRequest searchReq = new SearchRequest(Dn, searchQuery, searchScope, attributReturned);
 ```
-and
 
 ```C#
 search.PropertiesToLoad.Add()
