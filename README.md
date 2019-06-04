@@ -7,7 +7,7 @@ It currently uses S.DS namespace to retrieve information from the domain control
 _**This tool is still under construction.**_
 
 
-## Features
+## Enumeration
 * Current Domain/Forest information
 * Domains in the current forest (with domain SIDs)
 * Domain Controllers in the current domain \[GC/RODC] (with IP,OS Site and Roles)
@@ -19,6 +19,6 @@ _**This tool is still under construction.**_
 * GPOs (... under construction)
 * Confidential attributes ()
 
-## Info
+## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my project page: 
 **https://github.com/dev-2null/ADCollector/projects/1**
