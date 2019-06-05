@@ -563,19 +563,19 @@ namespace ADCollector
                     //gpo.Name : CN={*******-****-****-****-***********}
                     Console.WriteLine(" * GPO Name: {0}\n   {1}\n", gpo.Properties["displayName"][0], gpo.Name);
 
-                    foreach (FileSystemAccessRule fsar in File.GetAccessControl(gpoPath).GetAccessRules(true, true, typeof(NTAccount)))
-                    {
+                    //foreach (FileSystemAccessRule fsar in File.GetAccessControl(gpoPath).GetAccessRules(true, true, typeof(NTAccount)))
+                    //{
 
-                        string username = fsar.IdentityReference.Value;
-                        string userRights = fsar.FileSystemRights.ToString();
-                        //if (userRights.Contains())
-                        string userAccessType = fsar.AccessControlType.ToString();
-                        string ruleSource = fsar.IsInherited ? "Inherited" : "Explicit";
-                        string rulePropagation = fsar.PropagationFlags.ToString();
-                        string ruleInheritance = fsar.InheritanceFlags.ToString();
-                        Console.WriteLine(username + "\n" + userRights + "\n" + userAccessType + "\n" + ruleSource + "\n" + rulePropagation + "\n" + ruleInheritance);
-                        Console.WriteLine();
-                    }
+                    //    string username = fsar.IdentityReference.Value;
+                    //    string userRights = fsar.FileSystemRights.ToString();
+                    //    //if (userRights.Contains())
+                    //    string userAccessType = fsar.AccessControlType.ToString();
+                    //    string ruleSource = fsar.IsInherited ? "Inherited" : "Explicit";
+                    //    string rulePropagation = fsar.PropagationFlags.ToString();
+                    //    string ruleInheritance = fsar.InheritanceFlags.ToString();
+                    //    Console.WriteLine(username + "\n" + userRights + "\n" + userAccessType + "\n" + ruleSource + "\n" + rulePropagation + "\n" + ruleInheritance);
+                    //    Console.WriteLine();
+                    //}
 
 
                 }
