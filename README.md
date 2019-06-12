@@ -4,7 +4,7 @@ ADCollector is a lightweight tool that enumerates the Active Directory environme
 
 It currently uses S.DS namespace to retrieve domain/forest information from the domain controller(LDAP server). It also uses S.DS.P namespace for LDAP searching.
 
-_**This tool is still under construction. Features will be implemented can be seen from the [project page](https://github.com/dev-2null/ADCollector/projects/1)**_
+_**This tool is still under construction. Features will be implemented can be seen from my [project page](https://github.com/dev-2null/ADCollector/projects/1)**_
 
 
 ## Enumeration
