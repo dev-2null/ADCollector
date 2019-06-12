@@ -20,10 +20,10 @@ _**This tool is still under construction.**_
 * Confidential attributes ()
 
 ## Version
-- v 2.0.0:
-    It now uses S.DS.P namespace to perform search operations, making make searches faster and easier to implement. (It also supports paged search. )
-    It now supports searching in other domains. (command line parser is not implemented yet).
-    The code logic is reconstructed, less code, more understandable and cohesive.
+##### v 2.0.0:
+    1. It now uses S.DS.P namespace to perform search operations, making make searches faster and easier to implement. (It also supports paged search. )
+    2. It now supports searching in other domains. (command line parser is not implemented yet).
+    3. The code logic is reconstructed, less code, more understandable and cohesive.
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my project page: 
