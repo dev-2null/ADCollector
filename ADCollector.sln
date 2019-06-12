@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
-VisualStudioVersion = 16.0.28922.388
+VisualStudioVersion = 16.0.29001.49
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ADCollector", "ADCollector\ADCollector.csproj", "{0924BCD5-0A2B-4F85-B4E0-BD778B686FF8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ADCollector", "ADCollector\ADCollector.csproj", "{95C716C9-F0A4-4563-83CD-8553D014A999}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0924BCD5-0A2B-4F85-B4E0-BD778B686FF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0924BCD5-0A2B-4F85-B4E0-BD778B686FF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0924BCD5-0A2B-4F85-B4E0-BD778B686FF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0924BCD5-0A2B-4F85-B4E0-BD778B686FF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95C716C9-F0A4-4563-83CD-8553D014A999}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95C716C9-F0A4-4563-83CD-8553D014A999}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95C716C9-F0A4-4563-83CD-8553D014A999}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95C716C9-F0A4-4563-83CD-8553D014A999}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {F10F7E32-6532-4D06-A09D-712F2417CBE9}
+		SolutionGuid = {A4E7A10B-EA18-4939-9E4D-EC45910435DF}
 	EndGlobalSection
 EndGlobal
