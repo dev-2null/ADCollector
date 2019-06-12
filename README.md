@@ -2,7 +2,7 @@
 ADCollector is a lightweight tool that enumerates the Active Directory environment to identify possible attack vectors. The aim of developing this tool is to help me learn more about Active Directory security in a different perspective. I just started learning .NET with C#, the code could be really **terrible**~
 
 
-It currently uses S.DS namespace to retrieve information from the domain controller(LDAP server). 
+It currently uses S.DS namespace to retrieve domain/forest information from the domain controller(LDAP server). It also uses S.DS.P namespace for LDAP searching.
 
 _**This tool is still under construction.**_
 
@@ -19,6 +19,13 @@ _**This tool is still under construction.**_
 * GPOs (... under construction)
 * Confidential attributes ()
 
+## Version
+- v 2.0.0:
+    It now uses S.DS.P namespace to perform search operations, making make searches faster and easier to implement. (It also supports paged search. )
+    It now supports searching in other domains. (command line parser is not implemented yet).
+    The code logic is reconstructed, less code, more understandable and cohesive.
+
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my project page: 
 **https://github.com/dev-2null/ADCollector/projects/1**
+
