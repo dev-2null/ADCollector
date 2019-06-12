@@ -26,6 +26,6 @@ _**This tool is still under construction. Features will be implemented can be se
     3. The code logic is reconstructed, less code, more understandable and cohesive.
 
 ## Project
-For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1): 
+For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
 
 
