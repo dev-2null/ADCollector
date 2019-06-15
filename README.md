@@ -24,6 +24,9 @@ _**This tool is still under construction. Features will be implemented can be se
     1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
     2. It now supports searching in other domains. (command line parser is not implemented yet).
     3. The code logic is reconstructed, less code, more understandable and cohesive.
+##### v 2.0.1:
+    1. Separated into three classes.
+    2. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts doesn't need pre-authentication.
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
