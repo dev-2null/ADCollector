@@ -18,6 +18,10 @@ _**This tool is still under construction. Features will be implemented can be se
 * MSSQL SPN accounts
 * GPOs (... under construction)
 * Confidential attributes ()
+* ASREQROAST
+* Domain/Forest/DC functionality
+* Domain attributes (MAQ, minpwdlength, lockoutthreshold, gplink)
+* LDAP basic info
 
 ## Version
 ##### v 2.0.0:
