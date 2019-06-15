@@ -26,7 +26,7 @@ _**This tool is still under construction. Features will be implemented can be se
     3. The code logic is reconstructed, less code, more understandable and cohesive.
 ##### v 2.0.1:
     1. Separated into three classes.
-    2. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts doesn't need pre-authentication.
+    2. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
