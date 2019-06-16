@@ -23,6 +23,21 @@ _**This tool is still under construction. Features will be implemented can be se
 * Domain attributes (MAQ, minpwdlength, lockoutthreshold, gplink)
 * LDAP basic info
 
+## Usage
+```bat
+C:\ADCollector>ADCollector.exe  -h
+
+ADCollector v2.0.1
+Usage: ADCollector.exe <options>
+
+    -d , --Domain (Default: current domain)
+           Enumerate the specified domain
+
+    -s , --Ldaps (Default: use LDAP)
+           Use LDAP over SSL/TLS
+```
+
+
 ## Version
 ##### v 2.0.0:
     1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
