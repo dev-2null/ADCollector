@@ -20,7 +20,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Confidential attributes ()
 * ASREQROAST
 * Domain/Forest/DC functionality
-* Domain attributes (MAQ, minpwdlength, lockoutthreshold, gplink)
+* Domain attributes (MAQ, minPwdLength, maxPwdAge lockoutThreshold, gpLink)
 * LDAP basic info
 
 ## Usage
