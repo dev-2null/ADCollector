@@ -25,6 +25,14 @@ namespace ADCollector2
             [Option('s', "Ldaps", DefaultValue = false, HelpText = "LDAP over SSL/TLS")]
             public bool Ldaps { get; set; }
 
+            [Option('u', "User", DefaultValue = null, HelpText = "User to enumerate")]
+            public string User { get; set; }
+
+            [Option('p', "Properties", DefaultValue = null, HelpText = "User properties enumerate")]
+            public string Properties { get; set; }
+
+
+
             [HelpOption]
             public string GetHelp()
             {
@@ -50,11 +58,12 @@ Usage: ADCollector.exe <options>
 
             var options = new Options();
 
-            if (!Parser.Default.ParseArguments(args, options))
-            {
-                return;
-            }
+            if (!Parser.Default.ParseArguments(args, options)){ return;}
 
+            //LDAPS
+            ldaps |= options.Ldaps;
+
+            //Domain
             if (options.Domain != null)
             {
                 try
@@ -65,8 +74,8 @@ Usage: ADCollector.exe <options>
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Domain \"{0}\" does not exist!", options.Domain);
                     Console.WriteLine(e.Message);
+                    return;
                 }
             }
             else
@@ -75,14 +84,22 @@ Usage: ADCollector.exe <options>
                 forest = Forest.GetCurrentForest();
             }
 
-            ldaps |= options.Ldaps;
 
 
+            Collector();
+        }
+
+
+
+
+
+        public static void Collector()
+        {
             PrintBanner();
 
 
-
-            var rootDSE = new DirectoryEntry("LDAP://rootDSE");
+            //root DSE entry
+            var rootDSE = new DirectoryEntry("LDAP://" + domain.Name + "/rootDSE");
 
             //CN = Schema,CN = Configuration,
             string schemaNamingContext = rootDSE.Properties["schemaNamingContext"].Value.ToString();
@@ -97,13 +114,9 @@ Usage: ADCollector.exe <options>
             string rootDn = "DC=" + domain.Name.Replace(".", ",DC=");
 
             //Forest DN: DC=domain,DC=local
-            string forestDn = rootDomainNamingContext;
+            string forestDn = "DC=" + forest.Name.Replace(".", ",DC=");
 
-            //foreach(var version in rootDSE.Properties["supportedControl"])
-            //{
-            //    Console.WriteLine("   SupportedVersion: {0}",version);
-            //}
-            //Console.WriteLine();
+
 
             Console.WriteLine();
             Console.WriteLine("[-] LDAP basic Info:");
@@ -111,7 +124,7 @@ Usage: ADCollector.exe <options>
 
             foreach (var mech in rootDSE.Properties["supportedSASLMechanisms"])
             {
-                Console.WriteLine("    SupportedSASLMechanisms: {0}", mech);
+                Console.WriteLine("    SupportedSASLMechanisms:  {0}", mech);
             }
             Console.WriteLine();
 
@@ -123,23 +136,47 @@ Usage: ADCollector.exe <options>
             var dcFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["domainControllerFunctionality"].Value.ToString());
             Console.WriteLine("    DomainControllerFunctionality:    {0}", dcFunc);
 
+            rootDSE.Dispose();
 
-            ////////////////////Basic Info
 
-            Console.WriteLine("\n[-] Current Domain:        {0}\n", domain.Name);
 
-            Console.WriteLine("\n[-] Current Forest:        {0}\n", forest.Name);
+            //////////////////Basic Info
+            Console.WriteLine();
+            Console.WriteLine("[-] Current Domain:        {0}", domain.Name);
+            Console.WriteLine();
 
-            Console.WriteLine("\n[-] Domains in the current forest:\n");
+            Console.WriteLine();
+            Console.WriteLine("[-] Current Forest:        {0}", forest.Name);
+            Console.WriteLine();
 
+            Console.WriteLine();
+            Console.WriteLine("[-] Domains in the current forest:");
+            Console.WriteLine();
             Functions.GetDomains(forest);
 
-            Console.WriteLine("\n[-] Domain Controllers in the current domain:\n");
-
+            Console.WriteLine();
+            Console.WriteLine("[-] Discoverable Domain Controllers");
+            Console.WriteLine();
             Functions.GetDCs(domain);
 
 
             var connection = Functions.GetConnection(domain.Name, ldaps);
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Domain Controllers:");
+            Console.WriteLine();
+            string dcFilter = @"(primaryGroupID=516)";
+            string[] distinguishedName = { "distinguishedName" };
+            Functions.GetResponse(connection, dcFilter, SearchScope.Subtree, distinguishedName, rootDn, "single");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Read-Only Domain Controllers:");
+            Console.WriteLine();
+            string gcFilter = @"(primaryGroupID=521)";
+            Functions.GetResponse(connection, gcFilter, SearchScope.Subtree, distinguishedName, rootDn, "single");
+
+
 
             string TDOFilter = @"(objectCategory=TrustedDomain)";
 
@@ -172,15 +209,42 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Unconstrained Delegation Accounts in the current domain:");
+            Console.WriteLine("[-] Unconstrained Delegation Accounts");
             Console.WriteLine();
-            string unconstrainedFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";
-            string[] unconAttrs = { "distinguishedName" };
-            Functions.GetResponse(connection, unconstrainedFilter, SearchScope.Subtree, unconAttrs, rootDn, "single");
+            //TRUSTED_FOR_DELEGATION
+            string unconstrFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";
+            string[] unconstrAttrs = { "distinguishedName" };
+            Functions.GetResponse(connection, unconstrFilter, SearchScope.Subtree, unconstrAttrs, rootDn, "single");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Privileged Accounts in the current domain:");
+            Console.WriteLine("[-] Constrained Delegation[S4U2Self] Accounts (Use any auth protocols):");
+            Console.WriteLine();
+            //TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
+            string s4u2sFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=16777216)(!primaryGroupID=516))";
+            string[] s4u2sAttrs = { "distinguishedName" };
+            Functions.GetResponse(connection, s4u2sFilter, SearchScope.Subtree, s4u2sAttrs, rootDn, "single");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Constrained Delegation[S4U2Proxy] Accounts (Kerberos only):");
+            Console.WriteLine();
+            string constrFilter = @"(msDS-AllowedToDelegateTo=*)";
+            string[] constrAttrs = { "msDS-AllowedToDelegateTo" };
+            Functions.GetResponse(connection, constrFilter, SearchScope.Subtree, constrAttrs, rootDn, "multi");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Resources-based Constrained Delegation Accounts:");
+            Console.WriteLine();
+            string rbconstrFilter = @"(msDS-AllowedToActOnBehalfOfOtherIdentity=*)";
+            string[] rbconstrAttrs = { "msDS-AllowedToActOnBehalfOfOtherIdentity" };
+            Functions.GetResponse(connection, rbconstrFilter, SearchScope.Subtree, rbconstrAttrs, rootDn, "multi");
+
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Privileged Accounts:");
             Console.WriteLine();
             string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
             string[] AdminsAttrs = { "member" };
@@ -188,15 +252,38 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] MSSQL SPNs in the current domain:");
+            Console.WriteLine("[-] MSSQL SPNs:");
             Console.WriteLine();
-            string mssqlFilter = @"(servicePrincipalName=MSSQL*)";
-            string[] mssqlAttrs = { "sAMAccountName", "servicePrincipalName" };
-            Functions.GetResponse(connection, mssqlFilter, SearchScope.Subtree, mssqlAttrs, rootDn, "mssql");
+            string mssqlFilter = @"(servicePrincipalName=mssql*)";
+            string[] spnAttrs = { "sAMAccountName", "servicePrincipalName" };
+            Functions.GetResponse(connection, mssqlFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "mssql");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] DontRequirePreauth accounts in the current domain:");
+            Console.WriteLine("[-] Exchange SPNs:");
+            Console.WriteLine();
+            string exchangeFilter = @"(servicePrincipalName=exchange*)";
+            Functions.GetResponse(connection, exchangeFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "exchange");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] RDP SPNs:");
+            Console.WriteLine();
+            string termservFilter = @"(servicePrincipalName=term*)";
+            Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] PS Remoting SPNs:");
+            Console.WriteLine();
+            string wsmanFilter = @"(servicePrincipalName=wsman*)";
+            Functions.GetResponse(connection, wsmanFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "wsman");
+
+
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] DontRequirePreauth accounts:");
             Console.WriteLine();
             string noPreAuthFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=4194304)";
             string[] noPreAuthAttrs = { "sAMAccountName" };
@@ -204,7 +291,7 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] AdminSDHolder protected accounts in the current domain:");
+            Console.WriteLine("[-] AdminSDHolder protected accounts:");
             Console.WriteLine();
             string adminSDHolderFilter = @"(&(adminCount=1)(objectCategory=person))";
             string[] adminSDHolderAttrs = { "sAMAccountName" };
@@ -219,22 +306,20 @@ Usage: ADCollector.exe <options>
             Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
 
-            /*
-             * Not printing it since there could be thousands
-             * of GPOs            
-             * Just cache CN with DisplayName in a dictionary
-             * for future usage (PrintGplink)          
-            Console.WriteLine();
-            Console.WriteLine("[-] Group Policies in the current domain:");
-            Console.WriteLine();
-            */
+            ///*
+            //// * Not printing it since there could be thousands
+            //// * of GPOs            
+            //// * Just cache CN with DisplayName in a dictionary
+            //// * for future usage (PrintGplink)          
+            //Console.WriteLine();
+            //Console.WriteLine("[-] Group Policies");
+            //Console.WriteLine();
+            //*/
+
             string gpoFilter = @"(objectCategory=groupPolicyContainer)";
             string gpoDn = "CN=Policies,CN=System," + rootDn;
             string[] gpoAttrs = { "displayName", "cn" };
             Functions.GetResponse(connection, gpoFilter, SearchScope.OneLevel, gpoAttrs, gpoDn, "gpo");
-
-
-
             Console.WriteLine();
             Console.WriteLine("[-] Current Domain attributes:");
             Console.WriteLine();

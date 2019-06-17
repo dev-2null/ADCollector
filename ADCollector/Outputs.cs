@@ -27,7 +27,6 @@ namespace ADCollector2
                 {
                     Console.WriteLine("Unexpected single-valued type: {0}", entry.Attributes[attr][0].GetType().Name);
                 }
-
             }
         }
 
@@ -91,27 +90,57 @@ namespace ADCollector2
         }
 
 
-        public static void PrintMSSQL(SearchResponse response)
+        ////myNames: { "myName" : "msDS-Name"}
+        //public static void PrintMyName(SearchResponse response, Dictionary<string, string> myNames)
+        //{
+        //    foreach (SearchResultEntry entry in response.Entries)
+        //    {
+        //        foreach (KeyValuePair<string, string> pair in myNames)
+        //        {
+        //            Console.WriteLine("  * {0} : {1}", pair.Key, entry.Attributes[pair.Value][0]);
+        //        }
+
+        //        Console.WriteLine();
+        //    }
+        //}
+
+
+
+        //public static void PrintAttrName(SearchResponse response)
+        //{
+        //    foreach (SearchResultEntry entry in response.Entries)
+        //    {
+        //        var attrs = entry.Attributes;
+
+        //        foreach (DirectoryAttribute attr in attrs.Values)
+        //        {
+        //            Console.WriteLine("  *  " + attr.Name);
+        //        }
+        //        Console.WriteLine();
+        //    }
+        //}
+
+
+
+        public static void PrintSPNs(SearchResponse response, string spnName)
         {
             foreach (SearchResultEntry entry in response.Entries)
             {
-
                 Console.WriteLine("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
 
                 var SPNs = entry.Attributes["servicePrincipalName"];
 
                 var spnCount = SPNs.Count;
-
+   
                 if (spnCount > 1)
                 {
                     for (int i = 0; i < spnCount; i++)
                     {
-                        if (SPNs[i].ToString().Contains("MSSQL"))
+                        if (SPNs[i].ToString().ToLower().Contains(spnName))
                         {
                             Console.WriteLine("    - {0}", SPNs[i]);
                         }
                     }
-
                 }
                 else
                 {

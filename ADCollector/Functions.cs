@@ -6,7 +6,7 @@ using System.DirectoryServices.Protocols;
 using ADCollector2;
 using SearchScope = System.DirectoryServices.Protocols.SearchScope;
 using SearchOption = System.DirectoryServices.Protocols.SearchOption;
-
+using System.Collections.Generic;
 
 namespace ADCollector2
 {
@@ -36,7 +36,14 @@ namespace ADCollector2
 
 
 
-        public static void GetResponse(LdapConnection conn, string filter, SearchScope scope, string[] attrsToReturn, string dn, string printOption = null)
+        public static void GetResponse(LdapConnection conn,
+                                        string filter,
+                                        SearchScope scope,
+                                        string[] attrsToReturn,
+                                        string dn,
+                                        string printOption = null,
+                                        string spnName = null)
+                                        //Dictionary<string, string> myNames = null)
         {
 
             var request = new SearchRequest(dn, filter, scope, attrsToReturn);
@@ -89,17 +96,26 @@ namespace ADCollector2
                             Outputs.PrintMulti(response, attrsToReturn[0]);
                             break;
 
+                        ////Use specified name paris
+                        //case "mynames":
+                            //Outputs.PrintMyName(response, myNames);
+                            //break;
+
                         case "gpo":
                             Outputs.PrintGPO(response);
                             break;
 
-                        case "mssql":
-                            Outputs.PrintMSSQL(response);
+                        case "spn":
+                            Outputs.PrintSPNs(response, spnName);
                             break;
 
                         case "domain":
                             Outputs.PrintDomainAttrs(response);
                             break;
+
+                        //case "attrname":
+                            //Outputs.PrintAttrName(response);
+                            //break;
 
                         //default: print all attributesToReturned
                         default:
@@ -183,9 +199,9 @@ namespace ADCollector2
                     }
 
                     Console.WriteLine("  * {0}  {1}", dc.Name, DCType);
-                    Console.WriteLine("    IPAddress        :  {0}", dc.IPAddress);
-                    Console.WriteLine("    OS               :  {0}", dc.OSVersion);
-                    Console.WriteLine("    Site             :  {0}", dc.SiteName);
+                    //Console.WriteLine("    IPAddress        :  {0}", dc.IPAddress);
+                    //Console.WriteLine("    OS               :  {0}", dc.OSVersion);
+                    //Console.WriteLine("    Site             :  {0}", dc.SiteName);
 
                     string roles = "";
 
@@ -193,14 +209,19 @@ namespace ADCollector2
                     {
                         roles += role + "   ";
                     }
-                    Console.WriteLine("    Roles            :  {0}", roles);
+                    if(roles != "")
+                    {
+                        Console.WriteLine("    Roles            :  {0}", roles);
+                    }
 
                     Console.WriteLine();
 
                 }
                 catch (Exception)
                 {
+                    Console.WriteLine();
                     Console.WriteLine("  * {0}:  RPC server is unavailable.", dc.Name);
+                    Console.WriteLine();
                 }
             }
         }
