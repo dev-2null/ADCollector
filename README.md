@@ -46,6 +46,8 @@ Usage: ADCollector.exe <options>
 ##### v 2.0.1:
     1. Separated into three classes.
     2. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
+    3. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
+    4. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
