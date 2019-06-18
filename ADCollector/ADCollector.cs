@@ -25,12 +25,17 @@ namespace ADCollector2
             [Option('s', "Ldaps", DefaultValue = false, HelpText = "LDAP over SSL/TLS")]
             public bool Ldaps { get; set; }
 
-            [Option('u', "User", DefaultValue = null, HelpText = "User to enumerate")]
-            public string User { get; set; }
+            //[Option('u', "User", DefaultValue = null, HelpText = "User to enumerate")]
+            //public string User { get; set; }
 
-            [Option('p', "Properties", DefaultValue = null, HelpText = "User properties enumerate")]
-            public string Properties { get; set; }
+            //[Option('c', "Computer", DefaultValue = null, HelpText = "Computer to enumerate")]
+            //public string Computer { get; set; }
 
+            //[Option('a', "Attributes", DefaultValue = null, HelpText = "User/Computer attributes enumerate")]
+            //public string Attributes { get; set; }
+
+            //[Option('p', "Path", DefaultValue = null, HelpText = "LDAP path (distinguishedName) of specified object")]
+            //public string Path { get; set; }
 
 
             [HelpOption]
@@ -117,22 +122,27 @@ Usage: ADCollector.exe <options>
             string forestDn = "DC=" + forest.Name.Replace(".", ",DC=");
 
 
-
             Console.WriteLine();
             Console.WriteLine("[-] LDAP basic Info:");
             Console.WriteLine();
 
-            foreach (var mech in rootDSE.Properties["supportedSASLMechanisms"])
-            {
-                Console.WriteLine("    SupportedSASLMechanisms:  {0}", mech);
-            }
-            Console.WriteLine();
+            string[] rootDSEAttrs = { "supportedLDAPVersion", "supportedSASLMechanisms" };// "supportedLDAPPolicies", 
 
+            foreach (string rootDSEAttr in rootDSEAttrs)
+            {
+                foreach (var attr in rootDSE.Properties[rootDSEAttr])
+                {
+                    Console.WriteLine("    {0}:    {1}", rootDSEAttr, attr);
+                }
+                Console.WriteLine();
+            }
 
             var domainFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["domainFunctionality"].Value.ToString());
             Console.WriteLine("    DomainFunctionality:              {0}", domainFunc);
+
             var forestFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["forestFunctionality"].Value.ToString());
             Console.WriteLine("    ForestFunctionality:              {0}", forestFunc);
+
             var dcFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["domainControllerFunctionality"].Value.ToString());
             Console.WriteLine("    DomainControllerFunctionality:    {0}", dcFunc);
 
@@ -174,8 +184,8 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] Read-Only Domain Controllers:");
             Console.WriteLine();
             string gcFilter = @"(primaryGroupID=521)";
-            Functions.GetResponse(connection, gcFilter, SearchScope.Subtree, distinguishedName, rootDn, "single");
-
+            string[] rodcAttrs = { "managedBy" };
+            Functions.GetResponse(connection, gcFilter, SearchScope.Subtree, rodcAttrs, rootDn, "multi");
 
 
             string TDOFilter = @"(objectCategory=TrustedDomain)";
@@ -212,22 +222,26 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] Unconstrained Delegation Accounts");
             Console.WriteLine();
             //TRUSTED_FOR_DELEGATION
-            string unconstrFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";
+            //By default, DCs are configured to allow Kerberos Unconstrained Delegation.
+            //So excluding DCs here
+            string unconstrFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))"; 
             string[] unconstrAttrs = { "distinguishedName" };
             Functions.GetResponse(connection, unconstrFilter, SearchScope.Subtree, unconstrAttrs, rootDn, "single");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Constrained Delegation[S4U2Self] Accounts (Use any auth protocols):");
+            Console.WriteLine("[-] Constrained Delegation [S4U2Self] Accounts (Any protocols):");
             Console.WriteLine();
             //TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
-            string s4u2sFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=16777216)(!primaryGroupID=516))";
+            //By default, RODCs are configured to allow Kerberos Constrained Delegation with Protocol Transition.
+            //So excluding RODCs here
+            string s4u2sFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=16777216)(!primaryGroupID=521))";
             string[] s4u2sAttrs = { "distinguishedName" };
             Functions.GetResponse(connection, s4u2sFilter, SearchScope.Subtree, s4u2sAttrs, rootDn, "single");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Constrained Delegation[S4U2Proxy] Accounts (Kerberos only):");
+            Console.WriteLine("[-] Constrained Delegation [S4U2Proxy] Accounts (Kerberos only):");
             Console.WriteLine();
             string constrFilter = @"(msDS-AllowedToDelegateTo=*)";
             string[] constrAttrs = { "msDS-AllowedToDelegateTo" };
@@ -327,7 +341,7 @@ Usage: ADCollector.exe <options>
             string[] domainAttrs = { "minPWDLength", "maxPWDAge", "lockoutThreshold", "gplink", "ms-DS-MachineAccountQuota" };
             Functions.GetResponse(connection, domainFilter, SearchScope.Subtree, domainAttrs, rootDn, "domain");
 
-
+            connection.Dispose();
 
             Console.WriteLine();
         }
