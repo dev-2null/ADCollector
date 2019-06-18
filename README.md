@@ -10,18 +10,17 @@ _**This tool is still under construction. Features will be implemented can be se
 ## Enumeration
 * Current Domain/Forest information
 * Domains in the current forest (with domain SIDs)
-* Domain Controllers in the current domain \[GC/RODC] (with IP,OS Site and Roles)
-* Domain trusts [SID filtering status]
-* Forest trusts [SID filtering status]
+* Domain Controllers in the current domain \[GC/RODC] (with ~~IP,OS Site and ~~Roles)
+* Domain/Forest trusts as well as trusted domain objects[SID filtering status]
 * Privileged users (in DA and EA group)
 * Unconstrained delegation accounts (Excluding DCs)
-* MSSQL SPN accounts
-* GPOs (... under construction)
+* Constrained Delegation (S4U2Self, S4U2Proxy, Resources-based constrained delegation)
+* MSSQL/Exchange/RDP/PS Remoting SPN accounts
 * Confidential attributes ()
-* ASREQROAST
-* Domain/Forest/DC functionality
-* Domain attributes (MAQ, minPwdLength, maxPwdAge lockoutThreshold, gpLink)
-* LDAP basic info
+* ASREQROAST (DontRequirePreAuth accounts)
+* AdminSDHolder protected accounts
+* Domain attributes (MAQ, minPwdLength, maxPwdAge lockoutThreshold, gpLink[group policies that linked to the current domain object])
+* LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 
 ## Usage
 ```bat
@@ -45,10 +44,13 @@ Usage: ADCollector.exe <options>
     3. The code logic is reconstructed, less code, more understandable and cohesive.
 ##### v 2.0.1:
     1. Separated into three classes.
-    2. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
-    3. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
-    4. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
-    5. RODC (as well as the group that administers the RODc)
+    2. Dispose ldap connection properly.
+    3. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
+    4. LDAP basic info (supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
+    5. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
+    6. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
+    7. RODC (group that administers the RODC)
+
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
 
