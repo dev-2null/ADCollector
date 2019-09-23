@@ -199,9 +199,9 @@ namespace ADCollector2
                     }
 
                     Console.WriteLine("  * {0}  {1}", dc.Name, DCType);
-                    //Console.WriteLine("    IPAddress        :  {0}", dc.IPAddress);
-                    //Console.WriteLine("    OS               :  {0}", dc.OSVersion);
-                    //Console.WriteLine("    Site             :  {0}", dc.SiteName);
+                    Console.WriteLine("    IPAddress        :  {0}", dc.IPAddress);
+                    Console.WriteLine("    OS               :  {0}", dc.OSVersion);
+                    Console.WriteLine("    Site             :  {0}", dc.SiteName);
 
                     string roles = "";
 

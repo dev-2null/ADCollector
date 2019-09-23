@@ -26,7 +26,7 @@ _**This tool is still under construction. Features will be implemented can be se
 ```bat
 C:\ADCollector>ADCollector.exe  -h
 
-ADCollector v2.0.1
+ADCollector v1.1.3
 Usage: ADCollector.exe <options>
 
     -d , --Domain (Default: current domain)
@@ -38,11 +38,11 @@ Usage: ADCollector.exe <options>
 
 
 ## Version
-##### v 2.0.0:
+##### v 1.1.0:
     1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
     2. It now supports searching in other domains. (command line parser is not implemented yet).
     3. The code logic is reconstructed, less code, more understandable and cohesive.
-##### v 2.0.1:
+##### v 1.1.1:
     1. Separated into three classes.
     2. Dispose ldap connection properly.
     3. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
@@ -50,6 +50,12 @@ Usage: ADCollector.exe <options>
     5. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
     6. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
     7. RODC (group that administers the RODC)
+##### v 1.1.3:
+    1. Fixed SPN scanning result, privilege accounts group membership
+    2. Password does not expire accounts
+    3. User accounts with SPN set
+    4. DC info
+
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)

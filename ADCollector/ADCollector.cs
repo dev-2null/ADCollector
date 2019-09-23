@@ -150,7 +150,7 @@ Usage: ADCollector.exe <options>
 
 
 
-            //////////////////Basic Info
+            ////////////////Basic Info
             Console.WriteLine();
             Console.WriteLine("[-] Current Domain:        {0}", domain.Name);
             Console.WriteLine();
@@ -224,7 +224,7 @@ Usage: ADCollector.exe <options>
             //TRUSTED_FOR_DELEGATION
             //By default, DCs are configured to allow Kerberos Unconstrained Delegation.
             //So excluding DCs here
-            string unconstrFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))"; 
+            string unconstrFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";
             string[] unconstrAttrs = { "distinguishedName" };
             Functions.GetResponse(connection, unconstrFilter, SearchScope.Subtree, unconstrAttrs, rootDn, "single");
 
@@ -258,14 +258,6 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Privileged Accounts:");
-            Console.WriteLine();
-            string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
-            string[] AdminsAttrs = { "member" };
-            Functions.GetResponse(connection, adminsFilter, SearchScope.Subtree, AdminsAttrs, forestDn, "multi");
-
-
-            Console.WriteLine();
             Console.WriteLine("[-] MSSQL SPNs:");
             Console.WriteLine();
             string mssqlFilter = @"(servicePrincipalName=mssql*)";
@@ -294,10 +286,31 @@ Usage: ADCollector.exe <options>
             Functions.GetResponse(connection, wsmanFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "wsman");
 
 
+            Console.WriteLine();
+            Console.WriteLine("[-] Privileged Accounts:");
+            Console.WriteLine();
+            string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
+            string[] AdminsAttrs = { "member" };
+            Functions.GetResponse(connection, adminsFilter, SearchScope.Subtree, AdminsAttrs, rootDn, "multi");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] DontRequirePreauth accounts:");
+            Console.WriteLine("[-] User Accounts With SPN Set:");
+            Console.WriteLine();
+            string userSPNFilter = @"(&(sAMAccountType=805306368)(servicePrincipalName=*))";
+            Functions.GetResponse(connection, userSPNFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "null");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Password Does Not Expire Accounts:");
+            Console.WriteLine();
+            string notExpireFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=65536)";
+            string[] notExpireAttrs = { "sAMAccountName" };
+            Functions.GetResponse(connection, notExpireFilter, SearchScope.Subtree, notExpireAttrs, rootDn, "single");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] DontRequirePreauth Accounts:");
             Console.WriteLine();
             string noPreAuthFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=4194304)";
             string[] noPreAuthAttrs = { "sAMAccountName" };
@@ -305,19 +318,19 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] AdminSDHolder protected accounts:");
+            Console.WriteLine("[-] AdminSDHolder Protected Accounts:");
             Console.WriteLine();
             string adminSDHolderFilter = @"(&(adminCount=1)(objectCategory=person))";
             string[] adminSDHolderAttrs = { "sAMAccountName" };
             Functions.GetResponse(connection, adminSDHolderFilter, SearchScope.Subtree, adminSDHolderAttrs, rootDn, "single");
 
 
-            Console.WriteLine();
-            Console.WriteLine("[-] Confidential Attributes:");
-            Console.WriteLine();
-            string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
-            string[] confidentialAttrs = { "name" };
-            Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
+            //Console.WriteLine();
+            //Console.WriteLine("[-] Confidential Attributes:");
+            //Console.WriteLine();
+            //string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
+            //string[] confidentialAttrs = { "name" };
+            //Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
 
             ///*
@@ -356,7 +369,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine(@"   / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |   ");
             Console.WriteLine(@"  /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|   ");
             Console.WriteLine();
-            Console.WriteLine("   v2.0.1  by dev2null\r\n");
+            Console.WriteLine("   v1.1.3  by dev2null\r\n");
         }
 
 
@@ -374,56 +387,56 @@ Usage: ADCollector.exe <options>
         }
 
 
-        ////userAccountControl attribute ([MS-ADTS] section 2.2.16) TD flag 
-        //[Flags]
-        //public enum UACFlags
-        //{
-        //    SCRIPT = 0x1,
-        //    ACCOUNT_DISABLE = 0x2,
-        //    HOMEDIR_REQUIRED = 0x8,
-        //    LOCKOUT = 0x10,
-        //    PASSWD_NOTREQD = 0x20,
-        //    PASSWD_CANT_CHANGE = 0x40,
-        //    ENCRYPTED_TEXT_PASSWORD_ALLOWED = 0x80,
-        //    NORMAL_ACCOUNT = 0x200,
-        //    INTERDOMAIN_TRUST_ACCOUNT = 0x800,
-        //    WORKSTATION_TRUST_ACCOUNT = 0x1000,
-        //    SERVER_TRUST_ACCOUNT = 0x2000,
-        //    DONT_EXPIRE_PASSWD = 0x10000,
-        //    SMARTCART_REQUIRED = 0x40000,
-        //    TRUSTED_FOR_DELEGATION = 0x80000,
-        //    NOT_DELEGATED = 0x100000,
-        //    USE_DES_KEY_ONLY = 0x200000,
-        //    DONT_REQUIRE_PREAUTH = 0x400000,
-        //    PASSWORD_EXPIRED = 0x800000,
-        //    TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION = 0x1000000,
-        //    NO_AUTH_DATA_REQUIRED = 0x2000000,
-        //    PARTIAL_SECRETS_ACCOUNT = 0x4000000
-        //}
+        //userAccountControl attribute ([MS-ADTS] section 2.2.16) TD flag 
+        [Flags]
+        public enum UACFlags
+        {
+            SCRIPT = 0x1,
+            ACCOUNT_DISABLE = 0x2,
+            HOMEDIR_REQUIRED = 0x8,
+            LOCKOUT = 0x10,
+            PASSWD_NOTREQD = 0x20,
+            PASSWD_CANT_CHANGE = 0x40,
+            ENCRYPTED_TEXT_PASSWORD_ALLOWED = 0x80,
+            NORMAL_ACCOUNT = 0x200,
+            INTERDOMAIN_TRUST_ACCOUNT = 0x800,
+            WORKSTATION_TRUST_ACCOUNT = 0x1000,
+            SERVER_TRUST_ACCOUNT = 0x2000,
+            DONT_EXPIRE_PASSWD = 0x10000,
+            SMARTCART_REQUIRED = 0x40000,
+            TRUSTED_FOR_DELEGATION = 0x80000,
+            NOT_DELEGATED = 0x100000,
+            USE_DES_KEY_ONLY = 0x200000,
+            DONT_REQUIRE_PREAUTH = 0x400000,
+            PASSWORD_EXPIRED = 0x800000,
+            TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION = 0x1000000,
+            NO_AUTH_DATA_REQUIRED = 0x2000000,
+            PARTIAL_SECRETS_ACCOUNT = 0x4000000
+        }
 
 
-        //// ([MS-ADTS] section 6.1.6.7.9) trustAttributes
-        //[Flags]
-        //public enum TrustAttributes
-        //{
-        //    NON_TRANSITIVE = 1,
-        //    UPLEVEL_ONLY = 2,
-        //    QUARANTINED_DOMAIN = 4,
-        //    FOREST_TRANSITIVE = 8,
-        //    CROSS_ORGANIZARION = 16,
-        //    WITHIN_FOREST = 32,
-        //    TREAT_AS_EXTERNAL = 64
-        //}
+        // ([MS-ADTS] section 6.1.6.7.9) trustAttributes
+        [Flags]
+        public enum TrustAttributes
+        {
+            NON_TRANSITIVE = 1,
+            UPLEVEL_ONLY = 2,
+            QUARANTINED_DOMAIN = 4,
+            FOREST_TRANSITIVE = 8,
+            CROSS_ORGANIZARION = 16,
+            WITHIN_FOREST = 32,
+            TREAT_AS_EXTERNAL = 64
+        }
 
-        //// ([MS-ADTS] section 6.1.6.7.12) trustDirection
-        //[Flags]
-        //public enum TrustDirection
-        //{
-        //    DISABLE = 0,
-        //    INBOUND = 1,
-        //    OUTBOUND = 2,
-        //    BIDIRECTIONAL =3
-        //}
+        // ([MS-ADTS] section 6.1.6.7.12) trustDirection
+        [Flags]
+        public enum TrustDirection
+        {
+            DISABLE = 0,
+            INBOUND = 1,
+            OUTBOUND = 2,
+            BIDIRECTIONAL = 3
+        }
 
     }
 }

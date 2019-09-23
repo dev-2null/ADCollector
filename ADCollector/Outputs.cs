@@ -131,21 +131,33 @@ namespace ADCollector2
                 var SPNs = entry.Attributes["servicePrincipalName"];
 
                 var spnCount = SPNs.Count;
-   
-                if (spnCount > 1)
+
+                if (spnName == "null")
                 {
                     for (int i = 0; i < spnCount; i++)
                     {
-                        if (SPNs[i].ToString().ToLower().Contains(spnName))
-                        {
-                            Console.WriteLine("    - {0}", SPNs[i]);
-                        }
+                        Console.WriteLine("    - {0}", SPNs[i]);
                     }
                 }
                 else
                 {
-                    Console.WriteLine("    - {0}", SPNs[0]);
+                    if (spnCount > 1)
+                    {
+                        for (int i = 0; i < spnCount; i++)
+                        {
+                            if (SPNs[i].ToString().Split('/')[0].ToLower().Contains(spnName))
+                            {
+                                Console.WriteLine("    - {0}", SPNs[i]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("    - {0}", SPNs[0]);
+                    }
                 }
+   
+                
                 Console.WriteLine();
             }
         }
