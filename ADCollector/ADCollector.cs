@@ -8,6 +8,7 @@ using CommandLine;
 using CommandLine.Text;
 
 
+
 namespace ADCollector2
 {
     class ADCollector
@@ -122,6 +123,24 @@ Usage: ADCollector.exe <options>
             string forestDn = "DC=" + forest.Name.Replace(".", ",DC=");
 
 
+            
+
+            var connection = Functions.GetConnection(domain.Name, ldaps);
+
+            
+
+
+            ////////////////Basic Info
+            Console.WriteLine();
+            Console.WriteLine("[-] Current Domain:        {0}", domain.Name);
+            Console.WriteLine();
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Current Forest:        {0}", forest.Name);
+            Console.WriteLine();
+
+
+
             Console.WriteLine();
             Console.WriteLine("[-] LDAP basic Info:");
             Console.WriteLine();
@@ -150,14 +169,35 @@ Usage: ADCollector.exe <options>
 
 
 
-            ////////////////Basic Info
             Console.WriteLine();
-            Console.WriteLine("[-] Current Domain:        {0}", domain.Name);
+            Console.WriteLine("[-] Kerberos Policy:");
             Console.WriteLine();
+            Functions.GetDomainPolicy(domain.Name);
 
+
+
+            ///*
+            //// * Not printing it since there could be thousands
+            //// * of GPOs            
+            //// * Just cache CN with DisplayName in a dictionary
+            //// * for future usage (PrintGplink)          
+            //Console.WriteLine();
+            //Console.WriteLine("[-] Group Policies");
+            //Console.WriteLine();
+            //*/
+
+            string gpoFilter = @"(objectCategory=groupPolicyContainer)";
+            string gpoDn = "CN=Policies,CN=System," + rootDn;
+            string[] gpoAttrs = { "displayName", "cn" };
+            Functions.GetResponse(connection, gpoFilter, SearchScope.OneLevel, gpoAttrs, gpoDn, "gpo");
             Console.WriteLine();
-            Console.WriteLine("[-] Current Forest:        {0}", forest.Name);
+            Console.WriteLine("[-] Current Domain attributes:");
             Console.WriteLine();
+            string domainFilter = @"(objectCategory=domain)";
+            string[] domainAttrs = { "minPWDLength", "maxPWDAge", "lockoutThreshold", "lockoutDuration", "gplink", "ms-DS-MachineAccountQuota" };
+            Functions.GetResponse(connection, domainFilter, SearchScope.Subtree, domainAttrs, rootDn, "domain");
+
+
 
             Console.WriteLine();
             Console.WriteLine("[-] Domains in the current forest:");
@@ -169,8 +209,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine();
             Functions.GetDCs(domain);
 
-
-            var connection = Functions.GetConnection(domain.Name, ldaps);
+            
 
             Console.WriteLine();
             Console.WriteLine("[-] Domain Controllers:");
@@ -295,6 +334,14 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
+            Console.WriteLine("[-] AdminSDHolder Protected Accounts:");
+            Console.WriteLine();
+            string adminSDHolderFilter = @"(&(adminCount=1)(objectCategory=person))";
+            string[] adminSDHolderAttrs = { "sAMAccountName" };
+            Functions.GetResponse(connection, adminSDHolderFilter, SearchScope.Subtree, adminSDHolderAttrs, rootDn, "single");
+
+
+            Console.WriteLine();
             Console.WriteLine("[-] User Accounts With SPN Set:");
             Console.WriteLine();
             string userSPNFilter = @"(&(sAMAccountType=805306368)(servicePrincipalName=*))";
@@ -317,42 +364,15 @@ Usage: ADCollector.exe <options>
             Functions.GetResponse(connection, noPreAuthFilter, SearchScope.Subtree, noPreAuthAttrs, rootDn, "single");
 
 
+
             Console.WriteLine();
-            Console.WriteLine("[-] AdminSDHolder Protected Accounts:");
+            Console.WriteLine("[-] Confidential Attributes:");
             Console.WriteLine();
-            string adminSDHolderFilter = @"(&(adminCount=1)(objectCategory=person))";
-            string[] adminSDHolderAttrs = { "sAMAccountName" };
-            Functions.GetResponse(connection, adminSDHolderFilter, SearchScope.Subtree, adminSDHolderAttrs, rootDn, "single");
+            string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
+            string[] confidentialAttrs = { "name" };
+            Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
 
-            //Console.WriteLine();
-            //Console.WriteLine("[-] Confidential Attributes:");
-            //Console.WriteLine();
-            //string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
-            //string[] confidentialAttrs = { "name" };
-            //Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
-
-
-            ///*
-            //// * Not printing it since there could be thousands
-            //// * of GPOs            
-            //// * Just cache CN with DisplayName in a dictionary
-            //// * for future usage (PrintGplink)          
-            //Console.WriteLine();
-            //Console.WriteLine("[-] Group Policies");
-            //Console.WriteLine();
-            //*/
-
-            string gpoFilter = @"(objectCategory=groupPolicyContainer)";
-            string gpoDn = "CN=Policies,CN=System," + rootDn;
-            string[] gpoAttrs = { "displayName", "cn" };
-            Functions.GetResponse(connection, gpoFilter, SearchScope.OneLevel, gpoAttrs, gpoDn, "gpo");
-            Console.WriteLine();
-            Console.WriteLine("[-] Current Domain attributes:");
-            Console.WriteLine();
-            string domainFilter = @"(objectCategory=domain)";
-            string[] domainAttrs = { "minPWDLength", "maxPWDAge", "lockoutThreshold", "gplink", "ms-DS-MachineAccountQuota" };
-            Functions.GetResponse(connection, domainFilter, SearchScope.Subtree, domainAttrs, rootDn, "domain");
 
             connection.Dispose();
 

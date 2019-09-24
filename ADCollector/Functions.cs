@@ -7,6 +7,10 @@ using ADCollector2;
 using SearchScope = System.DirectoryServices.Protocols.SearchScope;
 using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.Collections.Generic;
+using IniParser;
+using IniParser.Model;
+
+
 
 namespace ADCollector2
 {
@@ -280,6 +284,31 @@ namespace ADCollector2
 
                 Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}{4,-10}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
             }
+        }
+
+
+        //https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/0fce5b92-bcc1-4b96-9c2b-56397c3f144f
+        public static void GetDomainPolicy(string domainName)
+        {
+            var parser = new FileIniDataParser();
+            try
+            {
+                string gptPath = "\\\\" + domainName + "\\SYSVOL\\" + domainName + "\\Policies\\{31B2F340-016D-11D2-945F-00C04FB984F9}\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf";
+                IniData data = parser.ReadFile(gptPath);
+
+                Console.WriteLine("    MaxServiceAge:           {0} Minutes", data["Kerberos Policy"]["MaxServiceAge"]);
+                Console.WriteLine("    MaxTicketAge:            {0} Hours", data["Kerberos Policy"]["MaxTicketAge"]);
+                Console.WriteLine("    MaxRenewAge:             {0} Days", data["Kerberos Policy"]["MaxRenewAge"]);
+                Console.WriteLine("    MaxClockSkew:            {0} Minutes", data["Kerberos Policy"]["MaxClockSkew"]);
+                Console.WriteLine("    TicketValidateClient:    {0}", data["Kerberos Policy"]["TicketValidateClient"]);
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error: {0}\n", e.Message);
+            }
+            
+
         }
 
 

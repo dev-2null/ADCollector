@@ -187,10 +187,12 @@ namespace ADCollector2
             foreach (SearchResultEntry entry in response.Entries)
             {
                 var pwdAge = TimeSpan.FromTicks(long.Parse(entry.Attributes["maxPWDAge"][0].ToString())).Days * -1;
-                Console.WriteLine("  * MachineAccountQuota: {0}", entry.Attributes["ms-DS-MachineAccountQuota"][0]);
-                Console.WriteLine("  * MinPWDLength : {0}", entry.Attributes["minPWDLength"][0]);
-                Console.WriteLine("  * MaxPWDAge : {0} days", pwdAge);
-                Console.WriteLine("  * LockoutThreshold : {0}", entry.Attributes["lockoutThreshold"][0]);
+                var lockduration = TimeSpan.FromTicks(long.Parse(entry.Attributes["LockoutDuration"][0].ToString())).Minutes * -1;
+                Console.WriteLine("    MachineAccountQuota: {0}", entry.Attributes["ms-DS-MachineAccountQuota"][0]);
+                Console.WriteLine("    MinPWDLength : {0}", entry.Attributes["minPWDLength"][0]);
+                Console.WriteLine("    MaxPWDAge : {0} days", pwdAge);
+                Console.WriteLine("    LockoutThreshold : {0}", entry.Attributes["lockoutThreshold"][0]);
+                Console.WriteLine("    LockoutDuration : {0} Minutes", lockduration);
                 Console.WriteLine("  * Group Policies linked to the domain object");
                 Console.WriteLine();
 

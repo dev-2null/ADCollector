@@ -12,15 +12,17 @@ _**This tool is still under construction. Features will be implemented can be se
 * Domains in the current forest (with domain SIDs)
 * Domain Controllers in the current domain \[GC/RODC] (with ~~IP,OS Site and ~~Roles)
 * Domain/Forest trusts as well as trusted domain objects[SID filtering status]
-* Privileged users (in DA and EA group)
+* Privileged users (currently in DA and EA group)
 * Unconstrained delegation accounts (Excluding DCs)
 * Constrained Delegation (S4U2Self, S4U2Proxy, Resources-based constrained delegation)
 * MSSQL/Exchange/RDP/PS Remoting SPN accounts
+* User accounts with SPN set & password does not expire account
 * Confidential attributes ()
 * ASREQROAST (DontRequirePreAuth accounts)
 * AdminSDHolder protected accounts
 * Domain attributes (MAQ, minPwdLength, maxPwdAge lockoutThreshold, gpLink[group policies that linked to the current domain object])
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
+* Kerberos Policy
 
 ## Usage
 ```bat
@@ -55,6 +57,7 @@ Usage: ADCollector.exe <options>
     2. Password does not expire accounts
     3. User accounts with SPN set
     4. DC info
+    5. Kerberos Policy
 
 
 ## Project
