@@ -1,8 +1,9 @@
 # ADCollector
-ADCollector is a lightweight tool that enumerates the Active Directory environment to identify possible attack vectors. The aim of developing this tool is to help me learn more about Active Directory security in a different perspective. I just started learning .NET with C#, the code could be really **terrible**~
+ADCollector is a lightweight tool that enumerates the Active Directory environment to identify possible attack vectors. It will give you a basic understanding of the configuration/deployment of the environment as a starting point. 
+The aim of developing this tool is to help me learn more about Active Directory security in a different perspective. I just started learning .NET with C#, the code could be really **terrible**~
 
 
-It currently uses S.DS namespace to retrieve domain/forest information from the domain controller(LDAP server). It also uses S.DS.P namespace for LDAP searching.
+It uses S.DS namespace to retrieve domain/forest information from the domain controller(LDAP server). It also utilizes S.DS.P namespace for LDAP searching.
 
 _**This tool is still under construction. Features will be implemented can be seen from my [project page](https://github.com/dev-2null/ADCollector/projects/1)**_
 
@@ -23,6 +24,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Domain attributes (MAQ, minPwdLength, maxPwdAge lockoutThreshold, gpLink[group policies that linked to the current domain object])
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
+* Interesting ACLs on the domain object (User defined object in the future)
 
 ## Usage
 ```bat
@@ -39,7 +41,7 @@ Usage: ADCollector.exe <options>
 ```
 
 
-## Version
+## Changelog
 ##### v 1.1.0:
     1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
     2. It now supports searching in other domains. (command line parser is not implemented yet).
@@ -54,10 +56,10 @@ Usage: ADCollector.exe <options>
     7. RODC (group that administers the RODC)
 ##### v 1.1.3:
     1. Fixed SPN scanning result, privilege accounts group membership
-    2. Password does not expire accounts
-    3. User accounts with SPN set
-    4. DC info
-    5. Kerberos Policy
+    2. Added enumeration for password does not expire accounts & User accounts with SPN set
+    3. DC info is back
+    4. Added Kerberos Policy enumeration
+    5. Added Interesting ACLs enumeration for the domain object
 
 
 ## Project

@@ -9,6 +9,9 @@ using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.Collections.Generic;
 using IniParser;
 using IniParser.Model;
+using System.Security.Principal;
+using System.Security.AccessControl;
+
 
 
 
@@ -309,6 +312,27 @@ namespace ADCollector2
             }
             
 
+        }
+
+
+        public static void GetInterestingAcls(string targetDn)
+        {
+            using(var entry = new DirectoryEntry("LDAP://" + targetDn))
+            {
+                ActiveDirectorySecurity sec = entry.ObjectSecurity;
+
+                AuthorizationRuleCollection rules = null;
+
+                rules = sec.GetAccessRules(true, true, typeof(NTAccount));
+
+                Console.WriteLine("  * Object DN: {0}", targetDn);
+                Console.WriteLine();
+
+                foreach (ActiveDirectoryAccessRule rule in rules)
+                {
+                    Outputs.PrintAce(rule);
+                }
+            }
         }
 
 

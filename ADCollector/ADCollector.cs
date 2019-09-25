@@ -6,8 +6,10 @@ using System.DirectoryServices;
 using System.Collections.Generic;
 using CommandLine;
 using CommandLine.Text;
-
-
+using System.Security.Principal;
+using System.Security.AccessControl;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace ADCollector2
 {
@@ -127,7 +129,7 @@ Usage: ADCollector.exe <options>
 
             var connection = Functions.GetConnection(domain.Name, ldaps);
 
-            
+
 
 
             ////////////////Basic Info
@@ -175,7 +177,6 @@ Usage: ADCollector.exe <options>
             Functions.GetDomainPolicy(domain.Name);
 
 
-
             ///*
             //// * Not printing it since there could be thousands
             //// * of GPOs            
@@ -209,7 +210,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine();
             Functions.GetDCs(domain);
 
-            
+
 
             Console.WriteLine();
             Console.WriteLine("[-] Domain Controllers:");
@@ -372,6 +373,13 @@ Usage: ADCollector.exe <options>
             string[] confidentialAttrs = { "name" };
             Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Interesting ACLs on the domain object:");
+            Console.WriteLine();
+            Functions.GetInterestingAcls(rootDn);
+
+            
 
 
             connection.Dispose();

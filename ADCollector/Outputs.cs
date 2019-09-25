@@ -3,6 +3,9 @@ using System.DirectoryServices.Protocols;
 using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using System.Security.Principal;
+using System.Linq;
+using System.DirectoryServices;
 
 namespace ADCollector2
 {
@@ -221,6 +224,28 @@ namespace ADCollector2
 
 
 
+
+        public static void PrintAce(ActiveDirectoryAccessRule rule)
+        {
+            //Adapted from https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1#L3746
+
+            Regex rights = new Regex(@"(GenericAll)|(.*Write.*)|(.*Create.*)|(.*Delete.*)", RegexOptions.Compiled);
+
+            var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
+
+            if (int.Parse(sid.Split('-').Last()) > 1000)
+            {
+                if (rights.IsMatch(rule.ActiveDirectoryRights.ToString()) ||
+                    (rule.ActiveDirectoryRights.ToString() == "ExtendedRights" && rule.AccessControlType.ToString() == "Allow"))
+                {
+                    Console.WriteLine("     IdentityReference:          {0}", rule.IdentityReference.ToString());
+                    Console.WriteLine("     IdentitySID:                {0}", rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString());
+                    Console.WriteLine("     ActiveDirectoryRights:      {0}", rule.ActiveDirectoryRights.ToString());
+                    Console.WriteLine();
+                }
+            }
+
+        }
 
     }
 }
