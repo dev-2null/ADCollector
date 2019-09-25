@@ -24,7 +24,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Domain attributes (MAQ, minPwdLength, maxPwdAge lockoutThreshold, gpLink[group policies that linked to the current domain object])
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
-* Interesting ACLs on the domain object (User defined object in the future)
+* Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
 
 ## Usage
 ```bat
@@ -59,7 +59,7 @@ Usage: ADCollector.exe <options>
     2. Added enumeration for password does not expire accounts & User accounts with SPN set
     3. DC info is back
     4. Added Kerberos Policy enumeration
-    5. Added Interesting ACLs enumeration for the domain object
+    5. Added Interesting ACLs enumeration for the domain object, resolving GUIDs
 
 
 ## Project

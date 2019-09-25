@@ -315,7 +315,7 @@ namespace ADCollector2
         }
 
 
-        public static void GetInterestingAcls(string targetDn)
+        public static void GetInterestingAcls(string targetDn, string forestDn)
         {
             using(var entry = new DirectoryEntry("LDAP://" + targetDn))
             {
@@ -330,9 +330,31 @@ namespace ADCollector2
 
                 foreach (ActiveDirectoryAccessRule rule in rules)
                 {
-                    Outputs.PrintAce(rule);
+                    Outputs.PrintAce(rule, forestDn);
                 }
             }
+        }
+
+        public static string ResolveRightsGuids(string forestDn, string rightsGuid)
+        {
+            var extrightsDn = "CN=Extended-Rights,CN=Configuration," + forestDn;
+
+            var rightsEntry = new DirectoryEntry("LDAP://" + extrightsDn);
+
+            var rightsSearcher = new DirectorySearcher(rightsEntry);
+
+            string rightFilter = @"(rightsGuid=" + rightsGuid + @")";
+
+            rightsSearcher.Filter = rightFilter;
+            rightsSearcher.SearchScope = System.DirectoryServices.SearchScope.OneLevel;
+            var rightsFinder = rightsSearcher.FindOne();
+
+
+            var rightDn = rightsFinder.Properties["cn"][0].ToString();
+
+            return rightDn;
+            
+
         }
 
 

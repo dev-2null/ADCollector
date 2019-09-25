@@ -124,12 +124,9 @@ Usage: ADCollector.exe <options>
             //Forest DN: DC=domain,DC=local
             string forestDn = "DC=" + forest.Name.Replace(".", ",DC=");
 
-
             
 
             var connection = Functions.GetConnection(domain.Name, ldaps);
-
-
 
 
             ////////////////Basic Info
@@ -377,7 +374,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine();
             Console.WriteLine("[-] Interesting ACLs on the domain object:");
             Console.WriteLine();
-            Functions.GetInterestingAcls(rootDn);
+            Functions.GetInterestingAcls(rootDn, forestDn);
 
             
 

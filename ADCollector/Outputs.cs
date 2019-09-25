@@ -225,23 +225,37 @@ namespace ADCollector2
 
 
 
-        public static void PrintAce(ActiveDirectoryAccessRule rule)
+        public static void PrintAce(ActiveDirectoryAccessRule rule, string forestDn)
         {
             //Adapted from https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1#L3746
 
             Regex rights = new Regex(@"(GenericAll)|(.*Write.*)|(.*Create.*)|(.*Delete.*)", RegexOptions.Compiled);
+            Regex replica = new Regex(@"(.*Replication.*)", RegexOptions.Compiled);
 
             var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
 
             if (int.Parse(sid.Split('-').Last()) > 1000)
             {
-                if (rights.IsMatch(rule.ActiveDirectoryRights.ToString()) ||
-                    (rule.ActiveDirectoryRights.ToString() == "ExtendedRights" && rule.AccessControlType.ToString() == "Allow"))
+                if (rights.IsMatch(rule.ActiveDirectoryRights.ToString()) )
                 {
                     Console.WriteLine("     IdentityReference:          {0}", rule.IdentityReference.ToString());
                     Console.WriteLine("     IdentitySID:                {0}", rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString());
                     Console.WriteLine("     ActiveDirectoryRights:      {0}", rule.ActiveDirectoryRights.ToString());
                     Console.WriteLine();
+                }
+                else if ((rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow"))
+                {
+                    Console.WriteLine("     IdentityReference:          {0}", rule.IdentityReference.ToString());
+                    Console.WriteLine("     IdentitySID:                {0}", rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString());
+                    Console.WriteLine("     ActiveDirectoryRights:      {0}", rule.ActiveDirectoryRights.ToString());
+
+                    //The ObjectType GUID maps to an extended right registered in the current forest schema, then that specific extended right is granted
+                    //Reference: https://www.blackhat.com/docs/us-17/wednesday/us-17-Robbins-An-ACE-Up-The-Sleeve-Designing-Active-Directory-DACL-Backdoors-wp.pdf
+
+                    Console.WriteLine("     ObjectType:                 {0}", Functions.ResolveRightsGuids(forestDn, rule.ObjectType.ToString()));
+                    Console.WriteLine();
+
+                    
                 }
             }
 
