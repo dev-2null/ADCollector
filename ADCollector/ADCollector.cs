@@ -262,26 +262,26 @@ Usage: ADCollector.exe <options>
             //By default, DCs are configured to allow Kerberos Unconstrained Delegation.
             //So excluding DCs here
             string unconstrFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))";
-            string[] unconstrAttrs = { "distinguishedName" };
-            Functions.GetResponse(connection, unconstrFilter, SearchScope.Subtree, unconstrAttrs, rootDn, "single");
+            string[] unconstrAttrs = { "", "sAMAccountName" };
+            Functions.GetResponse(connection, unconstrFilter, SearchScope.Subtree, unconstrAttrs, rootDn, "multi");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Constrained Delegation [S4U2Self] Accounts (Any protocols):");
+            Console.WriteLine("[-] Constrained Delegation [with S4U2Self enabled] Accounts (Any Authentication Protocol):");
             Console.WriteLine();
             //TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
             //By default, RODCs are configured to allow Kerberos Constrained Delegation with Protocol Transition.
             //So excluding RODCs here
             string s4u2sFilter = @"(&(userAccountControl:1.2.840.113556.1.4.803:=16777216)(!primaryGroupID=521))";
-            string[] s4u2sAttrs = { "distinguishedName" };
+            string[] s4u2sAttrs = { "sAMAccountName" };
             Functions.GetResponse(connection, s4u2sFilter, SearchScope.Subtree, s4u2sAttrs, rootDn, "single");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Constrained Delegation [S4U2Proxy] Accounts (Kerberos only):");
+            Console.WriteLine("[-] Constrained Delegation Accounts with associated services:");
             Console.WriteLine();
             string constrFilter = @"(msDS-AllowedToDelegateTo=*)";
-            string[] constrAttrs = { "msDS-AllowedToDelegateTo" };
+            string[] constrAttrs = { "msDS-AllowedToDelegateTo", "sAMAccountName" };
             Functions.GetResponse(connection, constrFilter, SearchScope.Subtree, constrAttrs, rootDn, "multi");
 
 
@@ -289,35 +289,35 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] Resources-based Constrained Delegation Accounts:");
             Console.WriteLine();
             string rbconstrFilter = @"(msDS-AllowedToActOnBehalfOfOtherIdentity=*)";
-            string[] rbconstrAttrs = { "msDS-AllowedToActOnBehalfOfOtherIdentity" };
+            string[] rbconstrAttrs = {"msDS-AllowedToActOnBehalfOfOtherIdentity", "sAMAccountName"};
             Functions.GetResponse(connection, rbconstrFilter, SearchScope.Subtree, rbconstrAttrs, rootDn, "multi");
 
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] MSSQL SPNs:");
+            Console.WriteLine("[-] Accounts with MSSQL SPNs:");
             Console.WriteLine();
             string mssqlFilter = @"(servicePrincipalName=mssql*)";
-            string[] spnAttrs = { "sAMAccountName", "servicePrincipalName" };
+            string[] spnAttrs = { "sAMAccountName" };
             Functions.GetResponse(connection, mssqlFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "mssql");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Exchange SPNs:");
+            Console.WriteLine("[-] Accounts with Exchange SPNs:");
             Console.WriteLine();
             string exchangeFilter = @"(servicePrincipalName=exchange*)";
             Functions.GetResponse(connection, exchangeFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "exchange");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] RDP SPNs:");
+            Console.WriteLine("[-] Accounts with RDP SPNs:");
             Console.WriteLine();
             string termservFilter = @"(servicePrincipalName=term*)";
             Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] PS Remoting SPNs:");
+            Console.WriteLine("[-] Accounts with PS Remoting SPNs:");
             Console.WriteLine();
             string wsmanFilter = @"(servicePrincipalName=wsman*)";
             Functions.GetResponse(connection, wsmanFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "wsman");
@@ -327,7 +327,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] Privileged Accounts:");
             Console.WriteLine();
             string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
-            string[] AdminsAttrs = { "member" };
+            string[] AdminsAttrs = { "member", "sAMAccountName" };
             Functions.GetResponse(connection, adminsFilter, SearchScope.Subtree, AdminsAttrs, rootDn, "multi");
 
 
@@ -343,7 +343,8 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] User Accounts With SPN Set:");
             Console.WriteLine();
             string userSPNFilter = @"(&(sAMAccountType=805306368)(servicePrincipalName=*))";
-            Functions.GetResponse(connection, userSPNFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "null");
+            string[] spnAcountAttrs = { "sAMAccountName", "servicePrincipalName" };
+            Functions.GetResponse(connection, userSPNFilter, SearchScope.Subtree, spnAcountAttrs, rootDn, "spn", "null");
 
 
             Console.WriteLine();

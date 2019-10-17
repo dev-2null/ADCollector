@@ -9,7 +9,6 @@ using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.Collections.Generic;
 using IniParser;
 using IniParser.Model;
-using System.Security.Principal;
 using System.Security.AccessControl;
 
 
@@ -240,7 +239,10 @@ namespace ADCollector2
         {
             string sidStatus;
 
-            Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            if (currentDomain.GetAllTrustRelationships().Count > 0)
+            {
+                Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            }
 
             foreach (TrustRelationshipInformation trustInfo in currentDomain.GetAllTrustRelationships())
             {
@@ -263,7 +265,10 @@ namespace ADCollector2
         {
             string sidStatus = "";
 
-            Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            if (currentForest.GetAllTrustRelationships().Count > 0)
+            {
+                Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}\n", "Source", "Target", "TrustType", "TrustDirection");
+            }
 
             foreach (TrustRelationshipInformation trustInfo in currentForest.GetAllTrustRelationships())
             {

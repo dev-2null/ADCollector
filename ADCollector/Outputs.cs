@@ -33,24 +33,35 @@ namespace ADCollector2
             }
         }
 
+
+        //Only print the first attribute in the attrReturned array list
+
         public static void PrintMulti(SearchResponse response, string attr)
         {
             foreach (SearchResultEntry entry in response.Entries)
             {
-                Console.WriteLine("  {0}\n", entry.DistinguishedName);
+                //Only if the attribute is specified to be returned, then "Attributes" contains it
+
+                Console.WriteLine("  * {0}", entry.Attributes["sAMAccountName"][0]);
+                Console.WriteLine("    {0}\n", entry.DistinguishedName);
+
+                if (attr == "")
+                {
+                    break;
+                }
 
                 if (entry.Attributes[attr][0] is string)
                 {
                     for (int i = 0; i < entry.Attributes[attr].Count; i++)
                     {
-                        Console.WriteLine("  *  {0}: {1}", attr.ToUpper(), entry.Attributes[attr][i]);
+                        Console.WriteLine("    - {0}: {1}", attr.ToUpper(), entry.Attributes[attr][i]);
                     }
                 }
                 else if (entry.Attributes[attr][0] is byte[])
                 {
                     for (int i = 0; i < entry.Attributes[attr].Count; i++)
                     {
-                        Console.WriteLine("  *  {0}: {1}",
+                        Console.WriteLine("    - {0}: {1}",
                             attr.ToUpper(),
                             System.Text.Encoding.ASCII.GetString((byte[])entry.Attributes[attr][i]));
                     }
@@ -128,40 +139,46 @@ namespace ADCollector2
         public static void PrintSPNs(SearchResponse response, string spnName)
         {
             foreach (SearchResultEntry entry in response.Entries)
-            {
-                Console.WriteLine("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
-
-                var SPNs = entry.Attributes["servicePrincipalName"];
-
-                var spnCount = SPNs.Count;
+            { 
 
                 if (spnName == "null")
                 {
+                    var SPNs = entry.Attributes["servicePrincipalName"];
+
+                    var spnCount = SPNs.Count;
+
+                    Console.WriteLine("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
+
                     for (int i = 0; i < spnCount; i++)
                     {
                         Console.WriteLine("    - {0}", SPNs[i]);
                     }
+                    Console.WriteLine();
                 }
                 else
                 {
-                    if (spnCount > 1)
-                    {
-                        for (int i = 0; i < spnCount; i++)
-                        {
-                            if (SPNs[i].ToString().Split('/')[0].ToLower().Contains(spnName))
-                            {
-                                Console.WriteLine("    - {0}", SPNs[i]);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("    - {0}", SPNs[0]);
-                    }
+                    Console.WriteLine("  * {0}", entry.Attributes["sAMAccountName"][0]);
+                    //Console.WriteLine("    {0}", entry.DistinguishedName);
+
+                ////Print SPNs
+                    //if (spnCount > 1)
+                    //{
+                    //    for (int i = 0; i < spnCount; i++)
+                    //    {
+                    //        if (SPNs[i].ToString().Split('/')[0].ToLower().Contains(spnName))
+                    //        {
+                    //            Console.WriteLine("    - {0}", SPNs[i]);
+                    //        }
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    Console.WriteLine("    - {0}", SPNs[0]);
+                    //}
                 }
-   
-                
-                Console.WriteLine();
+
+
+
             }
         }
 
@@ -196,7 +213,7 @@ namespace ADCollector2
                 Console.WriteLine("    MaxPWDAge : {0} days", pwdAge);
                 Console.WriteLine("    LockoutThreshold : {0}", entry.Attributes["lockoutThreshold"][0]);
                 Console.WriteLine("    LockoutDuration : {0} Minutes", lockduration);
-                Console.WriteLine("  * Group Policies linked to the domain object");
+                Console.WriteLine("\n  * Group Policies linked to the domain object");
                 Console.WriteLine();
 
                 PrintGplink(entry);
