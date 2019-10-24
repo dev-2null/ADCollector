@@ -45,31 +45,34 @@ namespace ADCollector2
                 Console.WriteLine("  * {0}", entry.Attributes["sAMAccountName"][0]);
                 Console.WriteLine("    {0}\n", entry.DistinguishedName);
 
-                if (attr == "")
+                //in case the attribute value is null
+                try
                 {
-                    break;
-                }
+                    if (attr == "") { }
 
-                if (entry.Attributes[attr][0] is string)
-                {
-                    for (int i = 0; i < entry.Attributes[attr].Count; i++)
+                    else if (entry.Attributes[attr][0] is string)
                     {
-                        Console.WriteLine("    - {0}: {1}", attr.ToUpper(), entry.Attributes[attr][i]);
+                        for (int i = 0; i < entry.Attributes[attr].Count; i++)
+                        {
+                            Console.WriteLine("    - {0}: {1}", attr.ToUpper(), entry.Attributes[attr][i]);
+                        }
+                    }
+                    else if (entry.Attributes[attr][0] is byte[])
+                    {
+                        for (int i = 0; i < entry.Attributes[attr].Count; i++)
+                        {
+                            Console.WriteLine("    - {0}: {1}",
+                                attr.ToUpper(),
+                                System.Text.Encoding.ASCII.GetString((byte[])entry.Attributes[attr][i]));
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Unexpected multi-valued type {0}", entry.Attributes[attr][0].GetType().Name);
                     }
                 }
-                else if (entry.Attributes[attr][0] is byte[])
-                {
-                    for (int i = 0; i < entry.Attributes[attr].Count; i++)
-                    {
-                        Console.WriteLine("    - {0}: {1}",
-                            attr.ToUpper(),
-                            System.Text.Encoding.ASCII.GetString((byte[])entry.Attributes[attr][i]));
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Unexpected multi-valued type {0}", entry.Attributes[attr][0].GetType().Name);
-                }
+                catch { }
+                
                 Console.WriteLine();
             }
         }
@@ -138,16 +141,31 @@ namespace ADCollector2
 
         public static void PrintSPNs(SearchResponse response, string spnName)
         {
+            ADCollector.UACFlags passNotExp = ADCollector.UACFlags.DONT_EXPIRE_PASSWD;
+
             foreach (SearchResultEntry entry in response.Entries)
             { 
 
                 if (spnName == "null")
                 {
+                    var uac = Enum.Parse(typeof(ADCollector.UACFlags), entry.Attributes["userAccountControl"][0].ToString());
+
                     var SPNs = entry.Attributes["servicePrincipalName"];
 
                     var spnCount = SPNs.Count;
 
-                    Console.WriteLine("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
+                    Console.Write("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
+
+                    if (uac.ToString().Contains(passNotExp.ToString()))
+                    {
+                        Console.WriteLine("    [DontExpirePasswd]");
+                    }
+                    else
+                    {
+                        Console.WriteLine();
+                    }
+
+
 
                     for (int i = 0; i < spnCount; i++)
                     {

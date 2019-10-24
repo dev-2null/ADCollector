@@ -64,6 +64,8 @@ Usage: ADCollector.exe <options>
             //if (args == null)
             //    throw new ArgumentNullException(nameof(args));
 
+            PrintBanner();
+
             var options = new Options();
 
             if (!Parser.Default.ParseArguments(args, options)){ return;}
@@ -88,13 +90,30 @@ Usage: ADCollector.exe <options>
             }
             else
             {
-                domain = Domain.GetCurrentDomain();
-                forest = Forest.GetCurrentForest();
+                try
+                {
+                    domain = Domain.GetCurrentDomain();
+                    forest = Forest.GetCurrentForest();
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine(e.Message);
+                }
+                
             }
 
 
-
-            Collector();
+            try
+            {
+                Collector();
+            }
+            catch
+            {
+                Console.WriteLine("Connection failed, Please check if you are using a domain account\n");
+                Console.ResetColor();
+            }
         }
 
 
@@ -103,9 +122,7 @@ Usage: ADCollector.exe <options>
 
         public static void Collector()
         {
-            PrintBanner();
-
-
+            
             //root DSE entry
             var rootDSE = new DirectoryEntry("LDAP://" + domain.Name + "/rootDSE");
 
@@ -221,12 +238,19 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] Read-Only Domain Controllers:");
             Console.WriteLine();
             string gcFilter = @"(primaryGroupID=521)";
-            string[] rodcAttrs = { "managedBy" };
+            string[] rodcAttrs = { "managedBy","sAMAccountName" };
             Functions.GetResponse(connection, gcFilter, SearchScope.Subtree, rodcAttrs, rootDn, "multi");
 
 
-            string TDOFilter = @"(objectCategory=TrustedDomain)";
+            Console.WriteLine();
+            Console.WriteLine("[-] Trust Accounts in the current domain");
+            Console.WriteLine();
+            string trustFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=2048)";
+            string[] trustAttrs = { "sAMAccountName" };
+            Functions.GetResponse(connection, trustFilter, SearchScope.Subtree, trustAttrs, rootDn, "single");
 
+
+            string TDOFilter = @"(objectCategory=TrustedDomain)";
             Console.WriteLine();
             Console.WriteLine("[-] Trusted Domain Objects in the current domain:");
             Console.WriteLine();
@@ -309,11 +333,11 @@ Usage: ADCollector.exe <options>
             Functions.GetResponse(connection, exchangeFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "exchange");
 
 
-            Console.WriteLine();
-            Console.WriteLine("[-] Accounts with RDP SPNs:");
-            Console.WriteLine();
-            string termservFilter = @"(servicePrincipalName=term*)";
-            Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
+            //Console.WriteLine();
+            //Console.WriteLine("[-] Accounts with RDP SPNs:");
+            //Console.WriteLine();
+            //string termservFilter = @"(servicePrincipalName=term*)";
+            //Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
 
 
             Console.WriteLine();
@@ -343,7 +367,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine("[-] User Accounts With SPN Set:");
             Console.WriteLine();
             string userSPNFilter = @"(&(sAMAccountType=805306368)(servicePrincipalName=*))";
-            string[] spnAcountAttrs = { "sAMAccountName", "servicePrincipalName" };
+            string[] spnAcountAttrs = { "sAMAccountName", "servicePrincipalName", "userAccountControl" };
             Functions.GetResponse(connection, userSPNFilter, SearchScope.Subtree, spnAcountAttrs, rootDn, "spn", "null");
 
 
@@ -373,6 +397,15 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
+            Console.WriteLine("[-] Group Policy Prefence Passwords in SYSVOL/Cache:");
+            Console.WriteLine();
+            string gppPath = "\\\\" + domain.Name + "\\SYSVOL\\" + domain.Name + "\\Policies\\";
+            Functions.GetGPPP(Functions.GetGPPXml(gppPath));
+            Functions.GetGPPP(Functions.GetCachedGPP());
+
+
+
+            Console.WriteLine();
             Console.WriteLine("[-] Interesting ACLs on the domain object:");
             Console.WriteLine();
             Functions.GetInterestingAcls(rootDn, forestDn);
@@ -395,7 +428,7 @@ Usage: ADCollector.exe <options>
             Console.WriteLine(@"   / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |   ");
             Console.WriteLine(@"  /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|   ");
             Console.WriteLine();
-            Console.WriteLine("   v1.1.3  by dev2null\r\n");
+            Console.WriteLine("   v1.1.4  by dev2null\r\n");
         }
 
 
@@ -463,6 +496,17 @@ Usage: ADCollector.exe <options>
             OUTBOUND = 2,
             BIDIRECTIONAL = 3
         }
+
+        //// ([MS-KILE section 2.2.7) 
+        //[Flags]
+        //public enum EncryptionType
+        //{
+        //    DES_CBC_CRC = 1,
+        //    DES_CBC_MD5 = 2,
+        //    RC4_HMAC_MD5 = 4,
+        //    AES128_CTS_HMAC_SHA1_96 = 8,
+        //    AES256_CTS_HMAC_SHA1_96 = 16
+        //}
 
     }
 }

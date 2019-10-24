@@ -10,9 +10,9 @@ using System.Collections.Generic;
 using IniParser;
 using IniParser.Model;
 using System.Security.AccessControl;
-
-
-
+using System.Xml;
+using System.IO;
+using System.Linq;
 
 namespace ADCollector2
 {
@@ -295,7 +295,9 @@ namespace ADCollector2
         }
 
 
-        //https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/0fce5b92-bcc1-4b96-9c2b-56397c3f144f
+        //Kerberos policy
+        //reference: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/0fce5b92-bcc1-4b96-9c2b-56397c3f144f
+
         public static void GetDomainPolicy(string domainName)
         {
             var parser = new FileIniDataParser();
@@ -363,8 +365,162 @@ namespace ADCollector2
         }
 
 
+        //https://social.msdn.microsoft.com/Forums/vstudio/en-US/957c6799-02c2-4a1d-b6ad-c573b80a69d5/continuing-on-error-with-directorygetfiles?forum=csharpgeneral
+
+        public static List<string> GetGPPXml(string fPath)
+        {
+            var xmlList = new List<string> { "Groups.xml", "Services.xml", "Scheduledtasks.xml", "Datasources.xml", "Printers.xml", "Drives.xml" };
+
+            var files = new List<string>();
+
+            foreach (string file in Directory.GetFiles(fPath))
+            {
+                try
+                {
+                    if (xmlList.Any(file.Contains))
+                    {
+                        files.Add(file);
+                    }
+                }
+                catch { }
+            }
+            foreach (string directory in Directory.GetDirectories(fPath))
+            {
+                try
+                {
+                    GetGPPXml(directory);
+                }
+                catch { }
+            }
+            return files;
+        }
 
 
+        //https://github.com/PowerShellMafia/PowerSploit/blob/master/Privesc/PowerUp.ps1
+
+        public static List<string> GetCachedGPP()
+        {
+            string allUser = Environment.GetEnvironmentVariable("ALLUSERSPROFILE");
+
+            return allUser.Contains("ProgramData") ? GetGPPXml(allUser) : GetGPPXml(allUser + @"\Application Data");
+
+        }
+
+
+
+        //https://github.com/PowerShellMafia/PowerSploit/blob/master/Exfiltration/Get-GPPPassword.ps1
+        //Search for groups.xml, scheduledtasks.xml, services.xml, datasources.xml, printers.xml and drives.xml
+        //findstr /S /I cpassword \\<FQDN>\sysvol\<FQDN>\policies\*.xml
+        public static void GetGPPP(List<string> files)
+        {
+
+            IDictionary<string, string> gppDict = new Dictionary<string, string>();
+            gppDict.Add("Groups.xml", "/Groups/User/Properties");
+            gppDict.Add("Services.xml", "/NTServices/NTService/Properties");
+            gppDict.Add("Scheduledtasks.xml", "/ScheduledTasks/Task/Properties");
+            gppDict.Add("Datasources.xml", "/DataSources/DataSource/Properties");
+            gppDict.Add("Printers.xml", "/Printers/SharedPrinter/Properties");
+            gppDict.Add("Drives.xml", "/Drives/Drive/Properties");
+
+            XmlDocument doc = new XmlDocument();
+
+            foreach (string path in files)
+            {
+                try
+                {
+                    doc.Load(path);
+                }
+                catch
+                {
+                    Console.WriteLine("Error loading file {0}", path);
+                }
+
+
+                foreach (KeyValuePair<string, string> gppXml in gppDict)
+                {
+                    doc.Load(path);
+
+                    if (doc.InnerXml.Contains("cpassword"))
+                    {
+                        var nodes = doc.DocumentElement.SelectNodes(gppXml.Value);
+
+                        switch (path.Split('\\').Last())
+                        {
+                            case "Groups.xml":
+                                foreach (XmlNode node in nodes)
+                                {
+                                    try
+                                    {
+                                        Console.WriteLine("  * userName:    {0}", node.Attributes["userName"].Value);
+                                        Console.WriteLine("    newName:     {0}", node.Attributes["newName"].Value);
+                                        Console.WriteLine("    cpassword:   {0}", node.Attributes["cpassword"].Value);
+                                        Console.WriteLine("    changed:     {0}", node.ParentNode.Attributes["changed"].Value);
+                                        Console.WriteLine("    Path:        {0}", path);
+                                        
+                                    }
+                                    catch { }
+
+                                }
+                                break;
+
+                            case "Services.xml":
+                                foreach (XmlNode node in nodes)
+                                {
+                                    try
+                                    {
+                                        Console.WriteLine("  * accountName:     {0}", node.Attributes["accountName"].Value);
+                                        Console.WriteLine("    cpassword:       {0}", node.Attributes["cpassword"].Value);
+                                        Console.WriteLine("    changed:         {0}", node.ParentNode.Attributes["changed"].Value);
+                                        Console.WriteLine("    Path:        {0}", path);
+                                    }
+                                    catch { }
+
+                                }
+                                break;
+
+                            case "Scheduledtasks":
+                                foreach (XmlNode node in nodes)
+                                {
+                                    try
+                                    {
+                                        Console.WriteLine("  * runAs:       {0}", node.Attributes["runAs"].Value);
+                                        Console.WriteLine("    cpassword:   {0}", node.Attributes["cpassword"].Value);
+                                        Console.WriteLine("    changed:     {0}", node.ParentNode.Attributes["changed"].Value);
+                                        Console.WriteLine("    Path:        {0}", path);
+                                    }
+                                    catch { }
+                                }
+                                break;
+
+                            default:
+                                foreach (XmlNode node in nodes)
+                                {
+                                    try
+                                    {
+                                        Console.WriteLine("  * userName:    {0}", node.Attributes["userName"].Value);
+                                        Console.WriteLine("    cpassword:   {0}", node.Attributes["cpassword"].Value);
+                                        Console.WriteLine("    changed:     {0}", node.ParentNode.Attributes["changed"].Value);
+                                        Console.WriteLine("    Path:        {0}", path);
+                                    }
+                                    catch { }
+
+                                }
+                                break;
+                        }
+                        
+                    }
+                    
+                }
+
+                Console.WriteLine();
+            }
+
+            
+
+            
+
+
+        }   
 
     }
 }
