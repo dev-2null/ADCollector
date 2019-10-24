@@ -29,6 +29,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
+* Group Policy Preference cpassword in SYSVOL/Cache
 
 ## Usage
 ```bat
@@ -58,13 +59,15 @@ Usage: ADCollector.exe <options>
     5. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
     6. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
     7. RODC (group that administers the RODC)
-##### v 1.1.3:
+##### v 1.1.2:
     1. Fixed SPN scanning result, privilege accounts group membership
     2. Added enumeration for password does not expire accounts & User accounts with SPN set
     3. DC info is back
     4. Added Kerberos Policy enumeration
     5. Added Interesting ACLs enumeration for the domain object, resolving GUIDs
-
+##### v 1.1.3:
+    1. Some bugs are killed and some details are improved
+    2. Added Group Policy Preference cpassword enumeration in SYSVOL/Cache
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
