@@ -25,11 +25,11 @@ namespace ADCollector2
             [Option('d', "Domain", DefaultValue = null, HelpText = "Domain to enumerate", MutuallyExclusiveSet = "DomainOption")]
             public string Domain { get; set; }
 
-            [Option('s', "Ldaps", DefaultValue = false, HelpText = "LDAP over SSL/TLS")]
+            [Option('l', "Ldaps", DefaultValue = false, HelpText = "LDAP over SSL/TLS")]
             public bool Ldaps { get; set; }
 
-            //[Option('u', "User", DefaultValue = null, HelpText = "User to enumerate")]
-            //public string User { get; set; }
+            [Option('s', "Spns", DefaultValue = null, HelpText = "Enumearte interesting SPNs")]
+            public bool Spns { get; set; }
 
             //[Option('c', "Computer", DefaultValue = null, HelpText = "Computer to enumerate")]
             //public string Computer { get; set; }
@@ -44,14 +44,19 @@ namespace ADCollector2
             [HelpOption]
             public string GetHelp()
             {
-                var help = @"ADCollector v2.0.1
+                var help = @"
 Usage: ADCollector.exe <options>
     
     -d , --Domain (Default: current domain)
            Enumerate the specified domain
 
-    -s , --Ldaps (Default: use LDAP)
+    -l , --Ldaps (Default: LDAP)
            Use LDAP over SSL/TLS
+
+    -s,  --Spns (Default: no SPN scanning)
+           Enumerate SPNs
+
+Example: .\ADCollector.exe --Domain child.lab.local --SPNs
                 ";
                 return help;
             }
@@ -107,7 +112,7 @@ Usage: ADCollector.exe <options>
 
             try
             {
-                Collector();
+                Collector(options.Spns);
             }
             catch
             {
@@ -120,7 +125,7 @@ Usage: ADCollector.exe <options>
 
 
 
-        public static void Collector()
+        public static void Collector(bool spns)
         {
             
             //root DSE entry
@@ -205,6 +210,9 @@ Usage: ADCollector.exe <options>
             string gpoDn = "CN=Policies,CN=System," + rootDn;
             string[] gpoAttrs = { "displayName", "cn" };
             Functions.GetResponse(connection, gpoFilter, SearchScope.OneLevel, gpoAttrs, gpoDn, "gpo");
+
+
+
             Console.WriteLine();
             Console.WriteLine("[-] Current Domain attributes:");
             Console.WriteLine();
@@ -317,34 +325,38 @@ Usage: ADCollector.exe <options>
             Functions.GetResponse(connection, rbconstrFilter, SearchScope.Subtree, rbconstrAttrs, rootDn, "multi");
 
 
-
-            Console.WriteLine();
-            Console.WriteLine("[-] Accounts with MSSQL SPNs:");
-            Console.WriteLine();
-            string mssqlFilter = @"(servicePrincipalName=mssql*)";
-            string[] spnAttrs = { "sAMAccountName" };
-            Functions.GetResponse(connection, mssqlFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "mssql");
-
-
-            Console.WriteLine();
-            Console.WriteLine("[-] Accounts with Exchange SPNs:");
-            Console.WriteLine();
-            string exchangeFilter = @"(servicePrincipalName=exchange*)";
-            Functions.GetResponse(connection, exchangeFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "exchange");
+            if (spns)
+            {
+                Console.WriteLine();
+                Console.WriteLine("[-] Accounts with MSSQL SPNs:");
+                Console.WriteLine();
+                string mssqlFilter = @"(servicePrincipalName=mssql*)";
+                string[] spnAttrs = { "sAMAccountName","servicePrincipalName" };
+                Functions.GetResponse(connection, mssqlFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "mssql");
 
 
-            //Console.WriteLine();
-            //Console.WriteLine("[-] Accounts with RDP SPNs:");
-            //Console.WriteLine();
-            //string termservFilter = @"(servicePrincipalName=term*)";
-            //Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
+                Console.WriteLine();
+                Console.WriteLine("[-] Accounts with Exchange SPNs:");
+                Console.WriteLine();
+                string exchangeFilter = @"(servicePrincipalName=exchange*)";
+                Functions.GetResponse(connection, exchangeFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "exchange");
 
 
-            Console.WriteLine();
-            Console.WriteLine("[-] Accounts with PS Remoting SPNs:");
-            Console.WriteLine();
-            string wsmanFilter = @"(servicePrincipalName=wsman*)";
-            Functions.GetResponse(connection, wsmanFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "wsman");
+                Console.WriteLine();
+                Console.WriteLine("[-] Accounts with RDP SPNs:");
+                Console.WriteLine();
+                string termservFilter = @"(servicePrincipalName=term*)";
+                Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
+
+
+                Console.WriteLine();
+                Console.WriteLine("[-] Accounts with PS Remoting SPNs:");
+                Console.WriteLine();
+                string wsmanFilter = @"(servicePrincipalName=wsman*)";
+                Functions.GetResponse(connection, wsmanFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "wsman");
+
+            }
+
 
 
             Console.WriteLine();
@@ -353,6 +365,15 @@ Usage: ADCollector.exe <options>
             string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
             string[] AdminsAttrs = { "member", "sAMAccountName" };
             Functions.GetResponse(connection, adminsFilter, SearchScope.Subtree, AdminsAttrs, rootDn, "multi");
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Sensitive Accounts:");
+            Console.WriteLine();
+            string sensiFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=1048576)";
+            string[] SensiAttrs = { "sAMAccountName" };
+            Functions.GetResponse(connection, sensiFilter, SearchScope.Subtree, SensiAttrs, rootDn, "single");
+
 
 
             Console.WriteLine();
@@ -397,7 +418,7 @@ Usage: ADCollector.exe <options>
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Group Policy Prefence Passwords in SYSVOL/Cache:");
+            Console.WriteLine("[-] Group Policy Preference Passwords in SYSVOL/Cache:");
             Console.WriteLine();
             string gppPath = "\\\\" + domain.Name + "\\SYSVOL\\" + domain.Name + "\\Policies\\";
             Functions.GetGPPP(Functions.GetGPPXml(gppPath));
@@ -410,6 +431,15 @@ Usage: ADCollector.exe <options>
             Console.WriteLine();
             Functions.GetInterestingAcls(rootDn, forestDn);
 
+
+
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Interesting ACLs on Group Policy Objects:");
+            Console.WriteLine();
+            Functions.GetInterestingGPOAcls(gpoDn, forestDn);
+
+            
             
 
 

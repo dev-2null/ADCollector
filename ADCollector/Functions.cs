@@ -332,7 +332,7 @@ namespace ADCollector2
 
                 rules = sec.GetAccessRules(true, true, typeof(NTAccount));
 
-                Console.WriteLine("  * Object DN: {0}", targetDn);
+                Console.WriteLine("  - Object DN: {0}", targetDn);
                 Console.WriteLine();
 
                 foreach (ActiveDirectoryAccessRule rule in rules)
@@ -341,6 +341,21 @@ namespace ADCollector2
                 }
             }
         }
+
+
+
+        public static void GetInterestingGPOAcls(string gpoDn, string forestDn)
+        {
+            foreach (KeyValuePair<string, string> gpo in Outputs.gpos)
+            {
+                Console.WriteLine("  * {0}", gpo.Value);
+
+                string gpDn = "CN=" + gpo.Key + ',' + gpoDn;
+
+                GetInterestingAcls(gpDn, forestDn);
+            }
+        }
+
 
         public static string ResolveRightsGuids(string forestDn, string rightsGuid)
         {

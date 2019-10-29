@@ -11,7 +11,7 @@ namespace ADCollector2
 {
     internal static class Outputs
     {
-        private static readonly Dictionary<string, string> gpos = new Dictionary<string, string>();
+        public static readonly Dictionary<string, string> gpos = new Dictionary<string, string>();
 
         public static void PrintSingle(SearchResponse response, string attr)
         {
@@ -144,15 +144,15 @@ namespace ADCollector2
             ADCollector.UACFlags passNotExp = ADCollector.UACFlags.DONT_EXPIRE_PASSWD;
 
             foreach (SearchResultEntry entry in response.Entries)
-            { 
+            {
+                var SPNs = entry.Attributes["servicePrincipalName"];
 
+                var spnCount = SPNs.Count;
+
+                //User accounts with SPN set
                 if (spnName == "null")
                 {
                     var uac = Enum.Parse(typeof(ADCollector.UACFlags), entry.Attributes["userAccountControl"][0].ToString());
-
-                    var SPNs = entry.Attributes["servicePrincipalName"];
-
-                    var spnCount = SPNs.Count;
 
                     Console.Write("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
 
@@ -166,33 +166,34 @@ namespace ADCollector2
                     }
 
 
-
                     for (int i = 0; i < spnCount; i++)
                     {
                         Console.WriteLine("    - {0}", SPNs[i]);
                     }
                     Console.WriteLine();
                 }
+                //Normal SPN scanning
                 else
                 {
                     Console.WriteLine("  * {0}", entry.Attributes["sAMAccountName"][0]);
                     //Console.WriteLine("    {0}", entry.DistinguishedName);
 
-                ////Print SPNs
-                    //if (spnCount > 1)
-                    //{
-                    //    for (int i = 0; i < spnCount; i++)
-                    //    {
-                    //        if (SPNs[i].ToString().Split('/')[0].ToLower().Contains(spnName))
-                    //        {
-                    //            Console.WriteLine("    - {0}", SPNs[i]);
-                    //        }
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    Console.WriteLine("    - {0}", SPNs[0]);
-                    //}
+                    ////Print SPNs
+                    if (spnCount > 1)
+                    {
+                        for (int i = 0; i < spnCount; i++)
+                        {
+                            if (SPNs[i].ToString().Split('/')[0].ToLower().Contains(spnName))
+                            {
+                                Console.WriteLine("    - {0}", SPNs[i]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("    - {0}", SPNs[0]);
+                    }
+                    Console.WriteLine();
                 }
 
 
