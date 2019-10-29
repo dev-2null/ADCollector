@@ -30,6 +30,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
 * Interesting ACLs on GPOs
+* Interesting descriptions on user objects
 * Group Policy Preference cpassword in SYSVOL/Cache
 
 ## Usage
