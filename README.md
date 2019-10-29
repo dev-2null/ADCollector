@@ -29,20 +29,33 @@ _**This tool is still under construction. Features will be implemented can be se
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
+* Interesting ACLs on GPOs
 * Group Policy Preference cpassword in SYSVOL/Cache
 
 ## Usage
 ```bat
-C:\ADCollector>ADCollector.exe  -h
+C:\Users> ADCollector.exe  -h
 
-ADCollector v1.1.3
+      _    ____   ____      _ _             _
+     / \  |  _ \ / ___|___ | | | ___  ___ _| |_ ___  _ __
+    / _ \ | | | | |   / _ \| | |/ _ \/ __|_  __/ _ \| '__|
+   / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |
+  /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|
+
+  v1.1.4  by dev2null
+
 Usage: ADCollector.exe <options>
 
     -d , --Domain (Default: current domain)
            Enumerate the specified domain
 
-    -s , --Ldaps (Default: use LDAP)
+    -s , --Ldaps (Default: LDAP)
            Use LDAP over SSL/TLS
+
+    -s,  --Spns (Default: no SPN scanning)
+           Enumerate SPNs
+
+Example: .\ADCollector.exe --Domain child.lab.local --SPNs
 ```
 
 
@@ -67,7 +80,9 @@ Usage: ADCollector.exe <options>
     5. Added Interesting ACLs enumeration for the domain object, resolving GUIDs
 ##### v 1.1.3:
     1. Some bugs are killed and some details are improved
-    2. Added Group Policy Preference cpassword enumeration in SYSVOL/Cache
+    2. SPN scanning is now optional
+    3. Added Group Policy Preference cpassword enumeration in SYSVOL/Cache
+    4. Interesting ACLs on GPOs
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
