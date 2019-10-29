@@ -42,6 +42,10 @@ namespace ADCollector2
 
 
 
+
+
+
+
         public static void GetResponse(LdapConnection conn,
                                         string filter,
                                         SearchScope scope,
@@ -143,6 +147,10 @@ namespace ADCollector2
         }
 
 
+
+
+
+
         public static void GetDomains(Forest currentForest)
         {
             foreach (Domain domain in currentForest.Domains)
@@ -168,6 +176,10 @@ namespace ADCollector2
 
             }
         }
+
+
+
+
 
 
 
@@ -235,6 +247,9 @@ namespace ADCollector2
 
 
 
+
+
+
         public static void GetDomainTrusts(Domain currentDomain)
         {
             string sidStatus;
@@ -258,6 +273,11 @@ namespace ADCollector2
                 Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}{4,-10}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
             }
         }
+
+
+
+
+
 
 
 
@@ -295,6 +315,10 @@ namespace ADCollector2
         }
 
 
+
+
+
+
         //Kerberos policy
         //reference: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/0fce5b92-bcc1-4b96-9c2b-56397c3f144f
 
@@ -322,6 +346,9 @@ namespace ADCollector2
         }
 
 
+
+
+
         public static void GetInterestingAcls(string targetDn, string forestDn)
         {
             using(var entry = new DirectoryEntry("LDAP://" + targetDn))
@@ -344,6 +371,22 @@ namespace ADCollector2
 
 
 
+
+
+        public static void GetDCSync()
+        {
+            foreach (KeyValuePair<string, int> user in Outputs.dcsyncCounter)
+            {
+                if (user.Value == 3)
+                {
+                    Console.WriteLine("  * {0}", user.Key);
+                }
+            }
+        }
+
+
+
+
         public static void GetInterestingGPOAcls(string gpoDn, string forestDn)
         {
             foreach (KeyValuePair<string, string> gpo in Outputs.gpos)
@@ -356,6 +399,13 @@ namespace ADCollector2
             }
         }
 
+
+
+
+
+
+
+
         public static void GetInterestingDescription(LdapConnection connection, string rootDn, string term)
         {
             string desFilter = (term != null) ? @"(&(sAMAccountType=805306368)(description=*" + term + "*))" : @"(&(sAMAccountType=805306368)(description=*pass*))";
@@ -364,6 +414,11 @@ namespace ADCollector2
 
             GetResponse(connection, desFilter, SearchScope.Subtree, descripAttrs, rootDn, "multi");
         }
+
+
+
+
+
 
 
         public static string ResolveRightsGuids(string forestDn, string rightsGuid)
@@ -387,6 +442,10 @@ namespace ADCollector2
             
 
         }
+
+
+
+
 
 
         //https://social.msdn.microsoft.com/Forums/vstudio/en-US/957c6799-02c2-4a1d-b6ad-c573b80a69d5/continuing-on-error-with-directorygetfiles?forum=csharpgeneral
@@ -420,6 +479,10 @@ namespace ADCollector2
         }
 
 
+
+
+
+
         //https://github.com/PowerShellMafia/PowerSploit/blob/master/Privesc/PowerUp.ps1
 
         public static List<string> GetCachedGPP()
@@ -429,6 +492,9 @@ namespace ADCollector2
             return allUser.Contains("ProgramData") ? GetGPPXml(allUser) : GetGPPXml(allUser + @"\Application Data");
 
         }
+
+
+
 
 
 

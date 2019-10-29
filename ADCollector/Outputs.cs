@@ -12,6 +12,7 @@ namespace ADCollector2
     internal static class Outputs
     {
         public static readonly Dictionary<string, string> gpos = new Dictionary<string, string>();
+        public static IDictionary<string, int> dcsyncCounter = new Dictionary<string, int>();
 
         public static void PrintSingle(SearchResponse response, string attr)
         {
@@ -266,7 +267,10 @@ namespace ADCollector2
             //Adapted from https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1#L3746
 
             Regex rights = new Regex(@"(GenericAll)|(.*Write.*)|(.*Create.*)|(.*Delete.*)", RegexOptions.Compiled);
-            Regex replica = new Regex(@"(.*Replication.*)", RegexOptions.Compiled);
+            //Regex replica = new Regex(@"(.*Replication.*)", RegexOptions.Compiled);
+
+
+            string[] dcsync = { "DS-Replication-Get-Changes", "DS-Replication-Get-Changes-All", "DS-Replication-Get-Changes-In-Filtered-Set" };
 
             var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
 
@@ -281,17 +285,33 @@ namespace ADCollector2
                 }
                 else if ((rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow"))
                 {
-                    Console.WriteLine("     IdentityReference:          {0}", rule.IdentityReference.ToString());
+                    string identRef = rule.IdentityReference.ToString();
+                    Console.WriteLine("     IdentityReference:          {0}", identRef );
                     Console.WriteLine("     IdentitySID:                {0}", rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString());
                     Console.WriteLine("     ActiveDirectoryRights:      {0}", rule.ActiveDirectoryRights.ToString());
 
                     //The ObjectType GUID maps to an extended right registered in the current forest schema, then that specific extended right is granted
                     //Reference: https://www.blackhat.com/docs/us-17/wednesday/us-17-Robbins-An-ACE-Up-The-Sleeve-Designing-Active-Directory-DACL-Backdoors-wp.pdf
+                    
+                    string objType = Functions.ResolveRightsGuids(forestDn, rule.ObjectType.ToString());
+                    Console.WriteLine("     ObjectType:                 {0}", objType);
 
-                    Console.WriteLine("     ObjectType:                 {0}", Functions.ResolveRightsGuids(forestDn, rule.ObjectType.ToString()));
+
+                    if (dcsync.Contains(objType)){
+
+                        if (dcsyncCounter.ContainsKey(identRef))
+                        {
+                            dcsyncCounter[identRef] += 1;
+                        }
+                        else
+                        {
+                            dcsyncCounter.Add(identRef, 1);
+                        }
+                    }
+
+
                     Console.WriteLine();
 
-                    
                 }
             }
 

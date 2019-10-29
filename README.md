@@ -29,6 +29,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
+* Unusual DCSync Accounts
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
@@ -88,6 +89,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
     2. SPN scanning is now optional
     3. Add Group Policy Preference cpassword enumeration in SYSVOL/Cache
     4. Add enumeration for Interesting ACLs on GPOs, interesting descriptions on user objects and Sensitive & not delegate accounts
+    5. Unusual DCSync accounts
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)

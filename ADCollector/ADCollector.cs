@@ -445,6 +445,11 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
             Functions.GetInterestingAcls(rootDn, forestDn);
 
 
+            Console.WriteLine();
+            Console.WriteLine("[-] Unusual DCSync Accounts:");
+            Console.WriteLine();
+            Functions.GetDCSync();
+
 
 
             Console.WriteLine();
