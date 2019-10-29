@@ -31,6 +31,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
+* Sensitive & Not delegate account
 * Group Policy Preference cpassword in SYSVOL/Cache
 
 ## Usage
@@ -80,14 +81,13 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
     1. Fixed SPN scanning result, privilege accounts group membership
     2. Added enumeration for password does not expire accounts & User accounts with SPN set
     3. DC info is back
-    4. Added Kerberos Policy enumeration
-    5. Added Interesting ACLs enumeration for the domain object, resolving GUIDs
+    4. Add Kerberos Policy enumeration
+    5. Add Interesting ACLs enumeration for the domain object, resolving GUIDs
 ##### v 1.1.3:
     1. Some bugs are killed and some details are improved
     2. SPN scanning is now optional
-    3. Added Group Policy Preference cpassword enumeration in SYSVOL/Cache
-    4. Interesting ACLs on GPOs
-    5. Interesting descriptions on user objects
+    3. Add Group Policy Preference cpassword enumeration in SYSVOL/Cache
+    4. Add enumeration for Interesting ACLs on GPOs, interesting descriptions on user objects and Sensitive & not delegate accounts
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
