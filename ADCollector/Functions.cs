@@ -356,6 +356,15 @@ namespace ADCollector2
             }
         }
 
+        public static void GetInterestingDescription(LdapConnection connection, string rootDn, string term)
+        {
+            string desFilter = (term != null) ? @"(&(sAMAccountType=805306368)(description=*" + term + "*))" : @"(&(sAMAccountType=805306368)(description=*pass*))";
+
+            string[] descripAttrs = { "description", "sAMAccountName"};
+
+            GetResponse(connection, desFilter, SearchScope.Subtree, descripAttrs, rootDn, "multi");
+        }
+
 
         public static string ResolveRightsGuids(string forestDn, string rightsGuid)
         {

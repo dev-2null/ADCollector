@@ -54,8 +54,11 @@ Usage: ADCollector.exe <options>
 
     -s,  --Spns (Default: no SPN scanning)
            Enumerate SPNs
+    
+    -t,  --Term (Default: 'pass')
+           Term to search in user description field
 
-Example: .\ADCollector.exe --Domain child.lab.local --SPNs
+Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 ```
 
 
@@ -83,6 +86,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs
     2. SPN scanning is now optional
     3. Added Group Policy Preference cpassword enumeration in SYSVOL/Cache
     4. Interesting ACLs on GPOs
+    5. Interesting descriptions on user objects
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)

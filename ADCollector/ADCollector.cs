@@ -31,8 +31,8 @@ namespace ADCollector2
             [Option('s', "Spns", DefaultValue = null, HelpText = "Enumearte interesting SPNs")]
             public bool Spns { get; set; }
 
-            //[Option('c', "Computer", DefaultValue = null, HelpText = "Computer to enumerate")]
-            //public string Computer { get; set; }
+            [Option('t', "Term", DefaultValue = null, HelpText = "Term to search in user description field")]
+            public string Term { get; set; }
 
             //[Option('a', "Attributes", DefaultValue = null, HelpText = "User/Computer attributes enumerate")]
             //public string Attributes { get; set; }
@@ -56,7 +56,10 @@ Usage: ADCollector.exe <options>
     -s,  --Spns (Default: no SPN scanning)
            Enumerate SPNs
 
-Example: .\ADCollector.exe --Domain child.lab.local --SPNs
+    -t,  --Term (Default: 'pass')
+           Term to search in user description field
+
+Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
                 ";
                 return help;
             }
@@ -110,9 +113,10 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs
             }
 
 
+            
             try
             {
-                Collector(options.Spns);
+                Collector(options.Spns, options.Term);
             }
             catch
             {
@@ -125,7 +129,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs
 
 
 
-        public static void Collector(bool spns)
+        public static void Collector(bool spns, string term)
         {
             
             //root DSE entry
@@ -417,6 +421,15 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs
             Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
 
+
+            Console.WriteLine();
+            Console.WriteLine("[-] Interesting Descriptions on User Objects:");
+            Console.WriteLine();
+            Functions.GetInterestingDescription(connection, rootDn, term);
+
+
+
+
             Console.WriteLine();
             Console.WriteLine("[-] Group Policy Preference Passwords in SYSVOL/Cache:");
             Console.WriteLine();
@@ -439,7 +452,8 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs
             Console.WriteLine();
             Functions.GetInterestingGPOAcls(gpoDn, forestDn);
 
-            
+
+
             
 
 
