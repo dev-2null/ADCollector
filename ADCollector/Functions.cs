@@ -212,21 +212,25 @@ namespace ADCollector2
 
             string ou = Dn.Replace(dn, "");
 
-            //the first OU does not affected by the blocking logic here
-            int ouCounter = 0;
+            //OU will not be affected by the block rule on itself
+            int blockCounter = 0;
             
             while (ou.Contains(","))
             {
 
                 using (var entry = new DirectoryEntry("LDAP://" + ou))
                 {
-                    isBlocking = Outputs.PrintGplink(entry, ou, isBlocking, ouCounter);
+                    isBlocking = Outputs.PrintGplink(entry, ou, isBlocking, blockCounter);
+
+                    if (isBlocking)
+                    {
+                        blockCounter += 1;
+                    }
                 }
 
                 if (ou.Contains(","))
                 {
                     ou = ou.Substring(ou.IndexOf(",") + 1);
-                    ouCounter += 1;
                 }
                 else
                 {
@@ -247,7 +251,7 @@ namespace ADCollector2
 
                     using (var entry = new DirectoryEntry("LDAP://" + siteDn))
                     {
-                        Outputs.PrintGplink(entry, siteDn, isBlocking);
+                        Outputs.PrintGplink(entry, siteDn, isBlocking, blockCounter);
                     }
 
                 }

@@ -261,7 +261,7 @@ namespace ADCollector2
 
 
 
-        public static bool PrintGplink(DirectoryEntry entry, string ou, bool isBlocking = false, int ouCounter = 1)
+        public static bool PrintGplink(DirectoryEntry entry, string ou, bool isBlocking = false, int blockCounter = 1)
         {
             Regex gpoRx = new Regex(@"\{.+?\}", RegexOptions.Compiled);
 
@@ -314,7 +314,7 @@ namespace ADCollector2
                     PrintYellow("  [Enforced]");
                     Console.WriteLine("        {0}", match.Value);
                 }
-                else if (!isBlocking || ouCounter == 0)
+                else if (!isBlocking || blockCounter == 0)
                 {
                     Console.Write("    GPO: {0}", gpos[match.Value]);
                     Console.WriteLine();
