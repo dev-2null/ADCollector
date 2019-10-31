@@ -88,10 +88,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 ##### v 1.1.4:
     1. Some bugs are killed and some details are improved
     2. SPN scanning is now optional
-    3. Add Group Policy Preference cpassword enumeration in SYSVOL/Cache
-    4. Add enumeration for Interesting ACLs on GPOs, interesting descriptions on user objects
-    5. Add effective GPOs on user/computer
-    6. Add enumerateion for unusual DCSync accounts, Sensitive & not delegate accounts
+    3. Add Enumeration for : GPP cpassword in SYSVOL/Cache; Interesting ACLs on GPOs; Interesting descriptions on user objects; Effective GPOs on user/computer; Unusual DCSync accounts, Sensitive & not delegate accounts
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
