@@ -236,13 +236,13 @@ namespace ADCollector2
                 Console.WriteLine("\n  * Group Policies linked to the domain object");
                 Console.WriteLine();
 
-                PrintGplink(entry);
+                PrintSearchResGplink(entry);
 
             }
         }
 
 
-        public static void PrintGplink(SearchResultEntry entry)
+        public static void PrintSearchResGplink(SearchResultEntry entry)
         {
             //non-greedy search
             Regex rx = new Regex(@"\{.+?\}", RegexOptions.Compiled);
@@ -259,6 +259,86 @@ namespace ADCollector2
             }
         }
 
+
+
+        public static bool PrintGplink(DirectoryEntry entry, string ou, bool isBlocking = false, int ouCounter = 1)
+        {
+            Regex gpoRx = new Regex(@"\{.+?\}", RegexOptions.Compiled);
+
+            string gplinks = " ";
+
+            bool isEnforced = false;
+
+            //In case there's no linked GPO
+            try
+            {
+                gplinks = entry.Properties["gplink"][0].ToString();
+            }
+            catch { }
+
+            //gplink value can also be empty if GPOs were remove?
+            if (gplinks != " ")
+            {
+                Console.WriteLine("  - {0}", ou);
+
+                //Domain object does not have the gpOptions attribute
+                try
+                {
+                    //https://devblogs.microsoft.com/scripting/how-can-i-determine-if-an-ou-is-blocking-group-policy-inheritance/
+                    if (entry.Properties["gpOptions"][0].ToString() == "1")
+                    {
+                        PrintYellow("   [This OU is Blocking Inheritance]");
+
+                        isBlocking = true;
+                    }
+
+                }
+                catch { }
+                
+
+                //[MS-GPOL] Section 2.2.2 Domain SOM Search
+                string gpl = entry.Properties["gplink"][0].ToString();
+
+                isEnforced |= gpl[gpl.Count() - 2].ToString() == "2";
+
+            }
+
+            MatchCollection matches = gpoRx.Matches(gplinks);
+
+            foreach (Match match in matches)
+            {
+                //GPO will only be effective is it is enforced or upper OUs do not block inheritance 
+                if (isEnforced)
+                {
+                    Console.Write("    GPO: {0}", gpos[match.Value]);
+                    PrintYellow("  [Enforced]");
+                    Console.WriteLine("        {0}", match.Value);
+                }
+                else if (!isBlocking || ouCounter == 0)
+                {
+                    Console.Write("    GPO: {0}", gpos[match.Value]);
+                    Console.WriteLine();
+                    Console.WriteLine("        {0}", match.Value);
+                }
+                else { }
+
+                Console.WriteLine();
+                
+            }
+
+            return isBlocking;
+
+        }
+
+
+
+
+        public static void PrintYellow(string output)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(output);
+            Console.ResetColor();
+        }
 
 
 

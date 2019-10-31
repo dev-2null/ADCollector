@@ -13,6 +13,8 @@ using System.Security.AccessControl;
 using System.Xml;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
+
 
 namespace ADCollector2
 {
@@ -39,6 +41,10 @@ namespace ADCollector2
             //Console.WriteLine("\n * LDAP Server is Connected");
             return conn;
         }
+
+
+
+
 
 
 
@@ -124,8 +130,8 @@ namespace ADCollector2
                             break;
 
                         //case "attrname":
-                            //Outputs.PrintAttrName(response);
-                            //break;
+                        //Outputs.PrintAttrName(response);
+                        //break;
 
                         //default: print all attributesToReturned
                         default:
@@ -148,6 +154,111 @@ namespace ADCollector2
 
 
 
+
+
+
+        public static string GetSingleValue(LdapConnection conn,
+                                string filter,
+                                SearchScope scope,
+                                string[] attrsToReturn,
+                                string dn)
+        {
+
+            var request = new SearchRequest(dn, filter, scope, attrsToReturn);
+
+            var searchControl = new SearchOptionsControl();
+
+            request.Controls.Add(searchControl);
+
+            SearchResponse response;
+
+            try
+            {
+                response = (SearchResponse)conn.SendRequest(request);
+                foreach (SearchResultEntry entry in response.Entries)
+                {
+                    return entry.DistinguishedName;
+                }
+                return null;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Unexpected error:  {0}", e.Message);
+                return null;
+            }
+        }
+
+
+
+
+
+
+        public static void GetAppliedGPOs(LdapConnection connection, string rootDn, string name, bool isPC = false)
+        {
+            //if it is a computer account or a user account
+            string nFilter = isPC ? @"(&(sAMAccountType=805306369)(name=" + name + "))" : @"(&(sAMAccountType=805306368)(name=" + name + "))";
+
+            string[] nAttrs = { "distingushiedName" };
+
+            //get the account distingushied name
+            string Dn = GetSingleValue(connection, nFilter, SearchScope.Subtree, nAttrs, rootDn);
+
+            Console.WriteLine("  * DN: {0}\n", Dn);
+
+            //If Last OU/Domain blocks inheritance
+            bool isBlocking = false;
+
+            string dn = "CN=" + name + ",";
+
+            string ou = Dn.Replace(dn, "");
+
+            //the first OU does not affected by the blocking logic here
+            int ouCounter = 0;
+            
+            while (ou.Contains(","))
+            {
+
+                using (var entry = new DirectoryEntry("LDAP://" + ou))
+                {
+                    isBlocking = Outputs.PrintGplink(entry, ou, isBlocking, ouCounter);
+                }
+
+                if (ou.Contains(","))
+                {
+                    ou = ou.Substring(ou.IndexOf(",") + 1);
+                    ouCounter += 1;
+                }
+                else
+                {
+                    break;
+                }
+                
+            }
+
+
+            //get GPO applied on the site
+            if (isPC)
+            {
+                try
+                {
+                    string site = ActiveDirectorySite.GetComputerSite().Name;
+
+                    string siteDn = "CN=" + site + ",CN=Sites,CN=Configuration," + rootDn;
+
+                    using (var entry = new DirectoryEntry("LDAP://" + siteDn))
+                    {
+                        Outputs.PrintGplink(entry, siteDn, isBlocking);
+                    }
+
+                }
+                catch { }
+            }
+
+
+
+
+
+        }
 
 
 
@@ -243,7 +354,6 @@ namespace ADCollector2
                 }
             }
         }
-
 
 
 

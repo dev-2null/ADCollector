@@ -157,17 +157,17 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
             ////////////////Basic Info
             Console.WriteLine();
-            Console.WriteLine("[-] Current Domain:        {0}", domain.Name);
+            PrintGreen("[-] Current Domain:        " + domain.Name);
             Console.WriteLine();
 
             Console.WriteLine();
-            Console.WriteLine("[-] Current Forest:        {0}", forest.Name);
+            PrintGreen("[-] Current Forest:        " + forest.Name);
             Console.WriteLine();
 
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] LDAP basic Info:");
+            PrintGreen("[-] LDAP basic Info:");
             Console.WriteLine();
 
             string[] rootDSEAttrs = { "supportedLDAPVersion", "supportedSASLMechanisms" };// "supportedLDAPPolicies", 
@@ -195,7 +195,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Kerberos Policy:");
+            PrintGreen("[-] Kerberos Policy:");
             Console.WriteLine();
             Functions.GetDomainPolicy(domain.Name);
 
@@ -204,9 +204,9 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
             //// * Not printing it since there could be thousands
             //// * of GPOs            
             //// * Just cache CN with DisplayName in a dictionary
-            //// * for future usage (PrintGplink)          
+            //// * for future usage (PrintSearchResGplink)          
             //Console.WriteLine();
-            //Console.WriteLine("[-] Group Policies");
+            //PrintGreen("[-] Group Policies");
             //Console.WriteLine();
             //*/
 
@@ -218,7 +218,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Current Domain attributes:");
+            PrintGreen("[-] Current Domain attributes:");
             Console.WriteLine();
             string domainFilter = @"(objectCategory=domain)";
             string[] domainAttrs = { "minPWDLength", "maxPWDAge", "lockoutThreshold", "lockoutDuration", "gplink", "ms-DS-MachineAccountQuota" };
@@ -227,19 +227,19 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Domains in the current forest:");
+            PrintGreen("[-] Domains in the current forest:");
             Console.WriteLine();
             Functions.GetDomains(forest);
 
             Console.WriteLine();
-            Console.WriteLine("[-] Discoverable Domain Controllers");
+            PrintGreen("[-] Discoverable Domain Controllers");
             Console.WriteLine();
             Functions.GetDCs(domain);
 
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Domain Controllers:");
+            PrintGreen("[-] Domain Controllers:");
             Console.WriteLine();
             string dcFilter = @"(primaryGroupID=516)";
             string[] distinguishedName = { "distinguishedName" };
@@ -247,15 +247,15 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Read-Only Domain Controllers:");
+            PrintGreen("[-] Read-Only Domain Controllers:");
             Console.WriteLine();
             string gcFilter = @"(primaryGroupID=521)";
-            string[] rodcAttrs = { "managedBy","sAMAccountName" };
+            string[] rodcAttrs = { "managedBy", "sAMAccountName" };
             Functions.GetResponse(connection, gcFilter, SearchScope.Subtree, rodcAttrs, rootDn, "multi");
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Trust Accounts in the current domain");
+            PrintGreen("[-] Trust Accounts in the current domain");
             Console.WriteLine();
             string trustFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=2048)";
             string[] trustAttrs = { "sAMAccountName" };
@@ -264,7 +264,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
             string TDOFilter = @"(objectCategory=TrustedDomain)";
             Console.WriteLine();
-            Console.WriteLine("[-] Trusted Domain Objects in the current domain:");
+            PrintGreen("[-] Trusted Domain Objects in the current domain:");
             Console.WriteLine();
             string[] forattrsToReturn = { "name" };
             string TDOdomainDn = "CN=System," + rootDn;
@@ -272,13 +272,13 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Domain Trust Relationships:");
+            PrintGreen("[-] Domain Trust Relationships:");
             Console.WriteLine();
             Functions.GetDomainTrusts(domain);
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Trusted Domain Objects in the current forest root domain:");
+            PrintGreen("[-] Trusted Domain Objects in the current forest root domain:");
             Console.WriteLine();
             string[] domattrsToReturn = { "name" };
             string TDOforestDn = "CN=System," + forestDn;
@@ -286,13 +286,13 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Forest Trust Relationships:");
+            PrintGreen("[-] Forest Trust Relationships:");
             Console.WriteLine();
             Functions.GetForestTrusts(forest);
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Unconstrained Delegation Accounts");
+            PrintGreen("[-] Unconstrained Delegation Accounts");
             Console.WriteLine();
             //TRUSTED_FOR_DELEGATION
             //By default, DCs are configured to allow Kerberos Unconstrained Delegation.
@@ -303,7 +303,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Constrained Delegation [with S4U2Self enabled] Accounts (Any Authentication Protocol):");
+            PrintGreen("[-] Constrained Delegation [with S4U2Self enabled] Accounts (Any Authentication Protocol):");
             Console.WriteLine();
             //TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
             //By default, RODCs are configured to allow Kerberos Constrained Delegation with Protocol Transition.
@@ -314,7 +314,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Constrained Delegation Accounts with associated services:");
+            PrintGreen("[-] Constrained Delegation Accounts with associated services:");
             Console.WriteLine();
             string constrFilter = @"(msDS-AllowedToDelegateTo=*)";
             string[] constrAttrs = { "msDS-AllowedToDelegateTo", "sAMAccountName" };
@@ -322,17 +322,17 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Resources-based Constrained Delegation Accounts:");
+            PrintGreen("[-] Resources-based Constrained Delegation Accounts:");
             Console.WriteLine();
             string rbconstrFilter = @"(msDS-AllowedToActOnBehalfOfOtherIdentity=*)";
-            string[] rbconstrAttrs = {"msDS-AllowedToActOnBehalfOfOtherIdentity", "sAMAccountName"};
+            string[] rbconstrAttrs = { "msDS-AllowedToActOnBehalfOfOtherIdentity", "sAMAccountName" };
             Functions.GetResponse(connection, rbconstrFilter, SearchScope.Subtree, rbconstrAttrs, rootDn, "multi");
 
 
             if (spns)
             {
                 Console.WriteLine();
-                Console.WriteLine("[-] Accounts with MSSQL SPNs:");
+                PrintGreen("[-] Accounts with MSSQL SPNs:");
                 Console.WriteLine();
                 string mssqlFilter = @"(servicePrincipalName=mssql*)";
                 string[] spnAttrs = { "sAMAccountName","servicePrincipalName" };
@@ -340,21 +340,21 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
                 Console.WriteLine();
-                Console.WriteLine("[-] Accounts with Exchange SPNs:");
+                PrintGreen("[-] Accounts with Exchange SPNs:");
                 Console.WriteLine();
                 string exchangeFilter = @"(servicePrincipalName=exchange*)";
                 Functions.GetResponse(connection, exchangeFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "exchange");
 
 
                 Console.WriteLine();
-                Console.WriteLine("[-] Accounts with RDP SPNs:");
+                PrintGreen("[-] Accounts with RDP SPNs:");
                 Console.WriteLine();
                 string termservFilter = @"(servicePrincipalName=term*)";
                 Functions.GetResponse(connection, termservFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "term");
 
 
                 Console.WriteLine();
-                Console.WriteLine("[-] Accounts with PS Remoting SPNs:");
+                PrintGreen("[-] Accounts with PS Remoting SPNs:");
                 Console.WriteLine();
                 string wsmanFilter = @"(servicePrincipalName=wsman*)";
                 Functions.GetResponse(connection, wsmanFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "wsman");
@@ -364,7 +364,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Privileged Accounts:");
+            PrintGreen("[-] Privileged Accounts:");
             Console.WriteLine();
             string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
             string[] AdminsAttrs = { "member", "sAMAccountName" };
@@ -372,7 +372,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Sensitive Accounts:");
+            PrintGreen("[-] Sensitive Accounts:");
             Console.WriteLine();
             string sensiFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=1048576)";
             string[] SensiAttrs = { "sAMAccountName" };
@@ -381,7 +381,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] AdminSDHolder Protected Accounts:");
+            PrintGreen("[-] AdminSDHolder Protected Accounts:");
             Console.WriteLine();
             string adminSDHolderFilter = @"(&(adminCount=1)(objectCategory=person))";
             string[] adminSDHolderAttrs = { "sAMAccountName" };
@@ -389,7 +389,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] User Accounts With SPN Set:");
+            PrintGreen("[-] User Accounts With SPN Set:");
             Console.WriteLine();
             string userSPNFilter = @"(&(sAMAccountType=805306368)(servicePrincipalName=*))";
             string[] spnAcountAttrs = { "sAMAccountName", "servicePrincipalName", "userAccountControl" };
@@ -397,7 +397,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Password Does Not Expire Accounts:");
+            PrintGreen("[-] Password Does Not Expire Accounts:");
             Console.WriteLine();
             string notExpireFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=65536)";
             string[] notExpireAttrs = { "sAMAccountName" };
@@ -405,7 +405,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] DontRequirePreauth Accounts:");
+            PrintGreen("[-] DontRequirePreauth Accounts:");
             Console.WriteLine();
             string noPreAuthFilter = @"(userAccountControl:1.2.840.113556.1.4.803:=4194304)";
             string[] noPreAuthAttrs = { "sAMAccountName" };
@@ -414,7 +414,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Confidential Attributes:");
+            PrintGreen("[-] Confidential Attributes:");
             Console.WriteLine();
             string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
             string[] confidentialAttrs = { "name" };
@@ -423,7 +423,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Interesting Descriptions on User Objects:");
+            PrintGreen("[-] Interesting Descriptions on User Objects:");
             Console.WriteLine();
             Functions.GetInterestingDescription(connection, rootDn, term);
 
@@ -431,7 +431,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Group Policy Preference Passwords in SYSVOL/Cache:");
+            PrintGreen("[-] Group Policy Preference Passwords in SYSVOL/Cache:");
             Console.WriteLine();
             string gppPath = "\\\\" + domain.Name + "\\SYSVOL\\" + domain.Name + "\\Policies\\";
             Functions.GetGPPP(Functions.GetGPPXml(gppPath));
@@ -440,32 +440,54 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Interesting ACLs on the domain object:");
+            PrintGreen("[-] Interesting ACLs on the domain object:");
             Console.WriteLine();
             Functions.GetInterestingAcls(rootDn, forestDn);
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Unusual DCSync Accounts:");
+            PrintGreen("[-] Unusual DCSync Accounts:");
             Console.WriteLine();
             Functions.GetDCSync();
 
 
 
             Console.WriteLine();
-            Console.WriteLine("[-] Interesting ACLs on Group Policy Objects:");
+            PrintGreen("[-] Interesting ACLs on Group Policy Objects:");
             Console.WriteLine();
             Functions.GetInterestingGPOAcls(gpoDn, forestDn);
 
 
 
-            
+            Console.WriteLine();
+            PrintGreen("[-] Effective GPOs On the Current Computer:");
+            Console.WriteLine();
+            string pcName = Environment.GetEnvironmentVariable("COMPUTERNAME");
+            Functions.GetAppliedGPOs(connection, rootDn, pcName, true);
+
+
+            Console.WriteLine();
+            PrintGreen("[-] Effective GPOs On the Current User:");
+            Console.WriteLine();
+            string uName = Environment.GetEnvironmentVariable("USERNAME");
+            Functions.GetAppliedGPOs(connection, rootDn, uName);
 
 
             connection.Dispose();
 
             Console.WriteLine();
         }
+
+
+
+
+        public static void PrintGreen(string output)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(output);
+            Console.ResetColor();
+        }
+
 
 
         public static void PrintBanner()

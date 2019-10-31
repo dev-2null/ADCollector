@@ -34,6 +34,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
 * Group Policy Preference cpassword in SYSVOL/Cache
+* Effective GPOs on the current user/computer
 
 ## Usage
 ```bat
@@ -66,11 +67,11 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
 ## Changelog
-##### v 1.1.0:
+##### v 1.1.1:
     1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
     2. It now supports searching in other domains. (command line parser is not implemented yet).
     3. The code logic is reconstructed, less code, more understandable and cohesive.
-##### v 1.1.1:
+##### v 1.1.2:
     1. Separated into three classes.
     2. Dispose ldap connection properly.
     3. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
@@ -78,18 +79,19 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
     5. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
     6. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
     7. RODC (group that administers the RODC)
-##### v 1.1.2:
+##### v 1.1.3:
     1. Fixed SPN scanning result, privilege accounts group membership
     2. Added enumeration for password does not expire accounts & User accounts with SPN set
     3. DC info is back
     4. Add Kerberos Policy enumeration
     5. Add Interesting ACLs enumeration for the domain object, resolving GUIDs
-##### v 1.1.3:
+##### v 1.1.4:
     1. Some bugs are killed and some details are improved
     2. SPN scanning is now optional
     3. Add Group Policy Preference cpassword enumeration in SYSVOL/Cache
-    4. Add enumeration for Interesting ACLs on GPOs, interesting descriptions on user objects and Sensitive & not delegate accounts
-    5. Unusual DCSync accounts
+    4. Add enumeration for Interesting ACLs on GPOs, interesting descriptions on user objects
+    5. Add effective GPOs on user/computer
+    6. Add enumerateion for unusual DCSync accounts, Sensitive & not delegate accounts
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
