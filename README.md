@@ -81,14 +81,12 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
     7. RODC (group that administers the RODC)
 ##### v 1.1.3:
     1. Fixed SPN scanning result, privilege accounts group membership
-    2. Added enumeration for password does not expire accounts & User accounts with SPN set
+    2. Add Enumeration for: Password does not expire accounts; User accounts with SPN set; Kerberos Policy; Interesting ACLs enumeration for the domain object, resolving GUIDs
     3. DC info is back
-    4. Add Kerberos Policy enumeration
-    5. Add Interesting ACLs enumeration for the domain object, resolving GUIDs
 ##### v 1.1.4:
     1. Some bugs are killed and some details are improved
     2. SPN scanning is now optional
-    3. Add Enumeration for : GPP cpassword in SYSVOL/Cache; Interesting ACLs on GPOs; Interesting descriptions on user objects; Effective GPOs on user/computer; Unusual DCSync accounts, Sensitive & not delegate accounts
+    3. Add Enumeration for: GPP cpassword in SYSVOL/Cache; Interesting ACLs on GPOs; Interesting descriptions on user objects; Effective GPOs on user/computer; Unusual DCSync accounts, Sensitive & not delegate accounts
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
