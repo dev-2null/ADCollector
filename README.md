@@ -35,6 +35,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Sensitive & Not delegate account
 * Group Policy Preference cpassword in SYSVOL/Cache
 * Effective GPOs on the current user/computer
+* Restricted groups
 
 ## Usage
 ```bat
@@ -86,7 +87,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 ##### v 1.1.4:
     1. Some bugs are killed and some details are improved
     2. SPN scanning is now optional
-    3. Add Enumeration for: GPP cpassword in SYSVOL/Cache; Interesting ACLs on GPOs; Interesting descriptions on user objects; Effective GPOs on user/computer; Unusual DCSync accounts, Sensitive & not delegate accounts
+    3. Add Enumeration for: GPP cpassword in SYSVOL/Cache; Interesting ACLs on GPOs; Interesting descriptions on user objects; Effective GPOs on user/computer; Unusual DCSync accounts, Sensitive & not delegate accounts; Restricted groups
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)

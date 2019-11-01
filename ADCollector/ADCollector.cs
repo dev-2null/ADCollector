@@ -181,13 +181,13 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
                 Console.WriteLine();
             }
 
-            var domainFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["domainFunctionality"].Value.ToString());
+            var domainFunc = Enum.Parse(typeof(Helper.Functionality), rootDSE.Properties["domainFunctionality"].Value.ToString());
             Console.WriteLine("    DomainFunctionality:              {0}", domainFunc);
 
-            var forestFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["forestFunctionality"].Value.ToString());
+            var forestFunc = Enum.Parse(typeof(Helper.Functionality), rootDSE.Properties["forestFunctionality"].Value.ToString());
             Console.WriteLine("    ForestFunctionality:              {0}", forestFunc);
 
-            var dcFunc = Enum.Parse(typeof(Functionality), rootDSE.Properties["domainControllerFunctionality"].Value.ToString());
+            var dcFunc = Enum.Parse(typeof(Helper.Functionality), rootDSE.Properties["domainControllerFunctionality"].Value.ToString());
             Console.WriteLine("    DomainControllerFunctionality:    {0}", dcFunc);
 
             rootDSE.Dispose();
@@ -413,12 +413,12 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
 
 
 
-            Console.WriteLine();
-            PrintGreen("[-] Confidential Attributes:");
-            Console.WriteLine();
-            string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
-            string[] confidentialAttrs = { "name" };
-            Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
+            //Console.WriteLine();
+            //PrintGreen("[-] Confidential Attributes:");
+            //Console.WriteLine();
+            //string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
+            //string[] confidentialAttrs = { "name" };
+            //Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
 
 
@@ -473,6 +473,17 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
             Functions.GetAppliedGPOs(connection, rootDn, uName);
 
 
+
+            Console.WriteLine();
+            PrintGreen("[-] Restricted Groups:");
+            Console.WriteLine();
+            Functions.GetRestrictedGroup(rootDn);
+
+
+
+
+
+
             connection.Dispose();
 
             Console.WriteLine();
@@ -503,81 +514,7 @@ Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
         }
 
 
-        [Flags]
-        public enum Functionality
-        {
-            DS_BEHAVIOR_WIN2000 = 0,
-            DS_BEHAVIOR_WIN2003_WITH_MIXED_DOMAINS = 1,
-            DS_BEHAVIOR_WIN2003 = 2,
-            DS_BEHAVIOR_WIN2008 = 3,
-            DS_BEHAVIOR_WIN2008R2 = 4,
-            DS_BEHAVIOR_WIN2012 = 5,
-            DS_BEHAVIOR_WIN2012R2 = 6,
-            DS_BEHAVIOR_WIN2016 = 7
-        }
-
-
-        //userAccountControl attribute ([MS-ADTS] section 2.2.16) TD flag 
-        [Flags]
-        public enum UACFlags
-        {
-            SCRIPT = 0x1,
-            ACCOUNT_DISABLE = 0x2,
-            HOMEDIR_REQUIRED = 0x8,
-            LOCKOUT = 0x10,
-            PASSWD_NOTREQD = 0x20,
-            PASSWD_CANT_CHANGE = 0x40,
-            ENCRYPTED_TEXT_PASSWORD_ALLOWED = 0x80,
-            NORMAL_ACCOUNT = 0x200,
-            INTERDOMAIN_TRUST_ACCOUNT = 0x800,
-            WORKSTATION_TRUST_ACCOUNT = 0x1000,
-            SERVER_TRUST_ACCOUNT = 0x2000,
-            DONT_EXPIRE_PASSWD = 0x10000,
-            SMARTCART_REQUIRED = 0x40000,
-            TRUSTED_FOR_DELEGATION = 0x80000,
-            NOT_DELEGATED = 0x100000,
-            USE_DES_KEY_ONLY = 0x200000,
-            DONT_REQUIRE_PREAUTH = 0x400000,
-            PASSWORD_EXPIRED = 0x800000,
-            TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION = 0x1000000,
-            NO_AUTH_DATA_REQUIRED = 0x2000000,
-            PARTIAL_SECRETS_ACCOUNT = 0x4000000
-        }
-
-
-        // ([MS-ADTS] section 6.1.6.7.9) trustAttributes
-        [Flags]
-        public enum TrustAttributes
-        {
-            NON_TRANSITIVE = 1,
-            UPLEVEL_ONLY = 2,
-            QUARANTINED_DOMAIN = 4,
-            FOREST_TRANSITIVE = 8,
-            CROSS_ORGANIZARION = 16,
-            WITHIN_FOREST = 32,
-            TREAT_AS_EXTERNAL = 64
-        }
-
-        // ([MS-ADTS] section 6.1.6.7.12) trustDirection
-        [Flags]
-        public enum TrustDirection
-        {
-            DISABLE = 0,
-            INBOUND = 1,
-            OUTBOUND = 2,
-            BIDIRECTIONAL = 3
-        }
-
-        //// ([MS-KILE section 2.2.7) 
-        //[Flags]
-        //public enum EncryptionType
-        //{
-        //    DES_CBC_CRC = 1,
-        //    DES_CBC_MD5 = 2,
-        //    RC4_HMAC_MD5 = 4,
-        //    AES128_CTS_HMAC_SHA1_96 = 8,
-        //    AES256_CTS_HMAC_SHA1_96 = 16
-        //}
+        
 
     }
 }

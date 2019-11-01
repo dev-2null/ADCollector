@@ -142,7 +142,7 @@ namespace ADCollector2
 
         public static void PrintSPNs(SearchResponse response, string spnName)
         {
-            ADCollector.UACFlags passNotExp = ADCollector.UACFlags.DONT_EXPIRE_PASSWD;
+            Helper.UACFlags passNotExp = Helper.UACFlags.DONT_EXPIRE_PASSWD;
 
             foreach (SearchResultEntry entry in response.Entries)
             {
@@ -153,7 +153,7 @@ namespace ADCollector2
                 //User accounts with SPN set
                 if (spnName == "null")
                 {
-                    var uac = Enum.Parse(typeof(ADCollector.UACFlags), entry.Attributes["userAccountControl"][0].ToString());
+                    var uac = Enum.Parse(typeof(Helper.UACFlags), entry.Attributes["userAccountControl"][0].ToString());
 
                     Console.Write("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
 
@@ -277,7 +277,7 @@ namespace ADCollector2
             catch { }
 
             //gplink value can also be empty if GPOs were remove?
-            if (gplinks != " ")
+            if (gplinks.Trim() != "")
             {
                 Console.WriteLine("  - {0}", ou);
 

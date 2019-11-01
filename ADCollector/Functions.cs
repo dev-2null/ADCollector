@@ -486,7 +486,7 @@ namespace ADCollector2
 
 
 
-
+        //Requires PrintAce to run first
         public static void GetDCSync()
         {
             foreach (KeyValuePair<string, int> user in Outputs.dcsyncCounter)
@@ -660,7 +660,7 @@ namespace ADCollector2
                                         Console.WriteLine("    cpassword:   {0}", node.Attributes["cpassword"].Value);
                                         Console.WriteLine("    changed:     {0}", node.ParentNode.Attributes["changed"].Value);
                                         Console.WriteLine("    Path:        {0}", path);
-                                        
+
                                     }
                                     catch { }
 
@@ -711,20 +711,137 @@ namespace ADCollector2
                                 }
                                 break;
                         }
-                        
+
                     }
-                    
+
                 }
 
                 Console.WriteLine();
             }
-
-            
-
-            
+        }
 
 
-        }   
+
+        public static void GetRestrictedGroup(string rootDn)
+        {
+
+            string gpoDn = "CN=Policies,CN=System," + rootDn;
+
+            string domainName = rootDn.Replace("DC=", "").Replace(",", ".");
+
+            string gpoPath = "\\\\" + domainName + "\\SYSVOL\\" + domainName + "\\Policies\\";
+
+            var groupMemRx = new Regex("__");
+
+            var sidRx = new Regex("^S-1-.*");
+
+            foreach (KeyValuePair<string, string> gpo in Outputs.gpos)
+            {
+                var groupParser = new FileIniDataParser();
+
+                string gpDn = "CN=" + gpo.Key + ',' + gpoDn;
+
+                string gptPath = gpoPath + gpo.Key + "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf";
+
+                string gXmlPath = gpoPath + gpo.Key + "\\MACHINE\\Preferences\\Groups\\Groups.xml";
+
+                //Group Set through Group Policy Restricted Group (GptTmpl.inf)
+                try
+                {
+                    IniData groups = groupParser.ReadFile(gptPath);
+
+                    if (groups.ToString().Contains("Group Membership"))
+                    {
+                        Console.WriteLine("  * {0}", gpo.Value);
+
+                        Console.WriteLine("    {0}", gpo.Key);
+
+                        foreach (SectionData section in groups.Sections)
+                        {
+                            string lastGroupSid = "";
+
+                            foreach (KeyData key in section.Keys)
+                            {
+                                if (key.KeyName.Contains("Member"))
+                                {
+                                    string groupSid = groupMemRx.Split(key.KeyName)[0].Trim('*');
+
+                                    string relation = groupMemRx.Split(key.KeyName)[1];
+
+                                    if (groupSid != lastGroupSid)
+                                    {
+                                        string gName = Helper.SidToName(groupSid);
+
+                                        Console.WriteLine("\n  - Group:          {0}", gName);
+                                        Console.WriteLine("    Group SID:      {0}", groupSid);
+                                        lastGroupSid = groupSid;
+                                    }
+
+
+                                    if (key.Value.Contains(','))
+                                    {
+                                        string mems = "";
+
+                                        foreach (string m in key.Value.Replace("*", "").Split(','))
+                                        {
+                                            if (sidRx.IsMatch(m.Trim())){
+                                                mems += Helper.SidToName(m.Trim()) + ", ";
+                                            }
+                                            else
+                                            {
+                                                mems += m.Trim() + ", ";
+                                            }
+                                        }
+
+                                        mems = "{" + mems.Trim().TrimEnd(',') + "}";
+
+                                        Console.WriteLine("    {0}:        {1}", relation, mems);
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("    {0}:        {1}", relation, key.Value.Replace("*", ""));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+
+                //Group set through Group Policy Preference (group.xml)
+                try
+                {
+                    XmlDocument gXml = new XmlDocument();
+
+                    gXml.Load(gXmlPath);
+
+                    var gNodes = gXml.SelectNodes("/Groups/Group/Properties");
+
+                    foreach (XmlNode gNode in gNodes)
+                    {
+
+                        string gName = gNode.Attributes["groupName"].Value;
+
+                        string groupSid = gNode.Attributes["groupSid"].Value;
+
+                        Console.WriteLine("\n  - Group:          {0}", gName);
+                        Console.WriteLine("    Group SID:      {0}", groupSid);
+
+                        var mNodes = gNode["Members"].SelectNodes("Member");
+                        foreach (XmlNode mNode in mNodes)
+                        {
+                            string mName = mNode.Attributes["name"].Value;
+                            //string mSid = mNode["sid"].InnerText;
+                            Console.WriteLine("    Members:        {0}", mName);
+                        }
+                    }
+                }
+                catch { }
+            }
+        }
+
+
 
     }
 }
