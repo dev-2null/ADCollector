@@ -751,12 +751,14 @@ namespace ADCollector2
                 string gXmlPath = gpoPath + gpo.Key + "\\MACHINE\\Preferences\\Groups\\Groups.xml";
 
                 //Group Set through Group Policy Restricted Group (GptTmpl.inf)
+                //Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Restricted Groups
                 try
                 {
                     IniData groups = groupParser.ReadFile(gptPath);
 
                     if (groups.ToString().Contains("Group Membership"))
                     {
+
                         Console.WriteLine("  * {0}", gpo.Value);
 
                         Console.WriteLine("    {0}", gpo.Key);
@@ -767,6 +769,7 @@ namespace ADCollector2
 
                             foreach (KeyData key in section.Keys)
                             {
+
                                 if (key.KeyName.Contains("Member"))
                                 {
                                     string groupSid = groupMemRx.Split(key.KeyName)[0].Trim('*');
@@ -775,14 +778,21 @@ namespace ADCollector2
 
                                     if (groupSid != lastGroupSid)
                                     {
-                                        string gName = Helper.SidToName(groupSid);
+                                        Console.WriteLine("\n  - Group:          {0}", groupSid);
 
-                                        Console.WriteLine("\n  - Group:          {0}", gName);
-                                        Console.WriteLine("    Group SID:      {0}", groupSid);
+                                        //If the group name is SID, convert it to name
+                                        if (sidRx.IsMatch(groupSid.Trim()))
+                                        {
+                                            string gName = Helper.SidToName(groupSid);
+
+                                            Console.WriteLine("    Group SID:      {0}", groupSid);
+                                        }
+
                                         lastGroupSid = groupSid;
                                     }
 
 
+                                    //Multiple members
                                     if (key.Value.Contains(','))
                                     {
                                         string mems = "";
@@ -802,9 +812,18 @@ namespace ADCollector2
 
                                         Console.WriteLine("    {0}:        {1}", relation, mems);
                                     }
+                                    //Single member
                                     else
                                     {
-                                        Console.WriteLine("    {0}:        {1}", relation, key.Value.Replace("*", ""));
+                                        string oneMem = key.Value.Replace("*", "");
+                                        
+                                        if (sidRx.IsMatch(oneMem.Trim()))
+                                        {
+                                            oneMem = Helper.SidToName(oneMem.Trim());
+                                        }
+
+                                        Console.WriteLine("    {0}:        {1}", relation, oneMem);
+                                        
                                     }
                                 }
                             }
@@ -815,6 +834,7 @@ namespace ADCollector2
 
 
                 //Group set through Group Policy Preference (group.xml)
+                //Computer Configuration -> Preferences -> Control Panel Settings -> Local User and Groups
                 try
                 {
                     XmlDocument gXml = new XmlDocument();
