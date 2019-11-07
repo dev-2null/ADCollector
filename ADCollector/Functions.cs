@@ -465,22 +465,27 @@ namespace ADCollector2
 
         public static void GetInterestingAcls(string targetDn, string forestDn)
         {
-            using(var entry = new DirectoryEntry("LDAP://" + targetDn))
+            try
             {
-                ActiveDirectorySecurity sec = entry.ObjectSecurity;
-
-                AuthorizationRuleCollection rules = null;
-
-                rules = sec.GetAccessRules(true, true, typeof(NTAccount));
-
-                Console.WriteLine("  - Object DN: {0}", targetDn);
-                Console.WriteLine();
-
-                foreach (ActiveDirectoryAccessRule rule in rules)
+                using (var entry = new DirectoryEntry("LDAP://" + targetDn))
                 {
-                    Outputs.PrintAce(rule, forestDn);
+                    ActiveDirectorySecurity sec = entry.ObjectSecurity;
+
+                    AuthorizationRuleCollection rules = null;
+
+                    rules = sec.GetAccessRules(true, true, typeof(NTAccount));
+
+                    Console.WriteLine("  - Object DN: {0}", targetDn);
+                    Console.WriteLine();
+
+                    foreach (ActiveDirectoryAccessRule rule in rules)
+                    {
+                        Outputs.PrintAce(rule, forestDn);
+                    }
                 }
             }
+            catch { }
+            
         }
 
 

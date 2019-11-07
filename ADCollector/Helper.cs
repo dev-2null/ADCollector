@@ -49,6 +49,8 @@ namespace ADCollector2
         }
 
 
+
+
         // ([MS-ADTS] section 6.1.6.7.9) trustAttributes
         [Flags]
         public enum TrustAttributes
@@ -62,6 +64,9 @@ namespace ADCollector2
             TREAT_AS_EXTERNAL = 64
         }
 
+
+
+
         // ([MS-ADTS] section 6.1.6.7.12) trustDirection
         [Flags]
         public enum TrustDirection
@@ -71,6 +76,8 @@ namespace ADCollector2
             OUTBOUND = 2,
             BIDIRECTIONAL = 3
         }
+
+
 
         //// ([MS-KILE section 2.2.7) 
         //[Flags]
@@ -84,6 +91,10 @@ namespace ADCollector2
         //}
 
 
+
+
+
+        //https://support.microsoft.com/en-us/kb/243330
 
         public static string SidToName(string sid)
         {

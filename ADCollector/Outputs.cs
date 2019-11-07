@@ -356,17 +356,24 @@ namespace ADCollector2
 
             if (int.Parse(sid.Split('-').Last()) > 1000)
             {
+                //Sometimes the identity reference cannot be resolved
+                string IR = "";
+                try
+                {
+                    IR = rule.IdentityReference.ToString();
+                }
+                catch { }
+
                 if (rights.IsMatch(rule.ActiveDirectoryRights.ToString()) )
                 {
-                    Console.WriteLine("     IdentityReference:          {0}", rule.IdentityReference.ToString());
+                    Console.WriteLine("     IdentityReference:          {0}", IR);
                     Console.WriteLine("     IdentitySID:                {0}", rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString());
                     Console.WriteLine("     ActiveDirectoryRights:      {0}", rule.ActiveDirectoryRights.ToString());
                     Console.WriteLine();
                 }
-                else if ((rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow"))
+                else if (rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow")
                 {
-                    string identRef = rule.IdentityReference.ToString();
-                    Console.WriteLine("     IdentityReference:          {0}", identRef );
+                    Console.WriteLine("     IdentityReference:          {0}", IR );
                     Console.WriteLine("     IdentitySID:                {0}", rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString());
                     Console.WriteLine("     ActiveDirectoryRights:      {0}", rule.ActiveDirectoryRights.ToString());
 
@@ -379,13 +386,13 @@ namespace ADCollector2
 
                     if (dcsync.Contains(objType)){
 
-                        if (dcsyncCounter.ContainsKey(identRef))
+                        if (dcsyncCounter.ContainsKey(IR))
                         {
-                            dcsyncCounter[identRef] += 1;
+                            dcsyncCounter[IR] += 1;
                         }
                         else
                         {
-                            dcsyncCounter.Add(identRef, 1);
+                            dcsyncCounter.Add(IR, 1);
                         }
                     }
 
