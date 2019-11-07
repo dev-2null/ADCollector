@@ -49,21 +49,24 @@ C:\Users> ADCollector.exe  -h
 
   v1.1.4  by dev2null
 
-Usage: ADCollector.exe <options>
-
-    -d , --Domain (Default: current domain)
-           Enumerate the specified domain
-
-    -s , --Ldaps (Default: LDAP)
-           Use LDAP over SSL/TLS
-
-    -s,  --Spns (Default: no SPN scanning)
-           Enumerate SPNs
+Usage: ADCollector.exe -h
     
-    -t,  --Term (Default: 'pass')
-           Term to search in user description field
+    --Domain (Default: current domain)
+            Enumerate the specified domain
 
-Example: .\ADCollector.exe --Domain child.lab.local --SPNs --Term key
+    --Ldaps (Default: LDAP)
+            Use LDAP over SSL/TLS
+
+    --Spns (Default: no SPN scanning)
+            Enumerate SPNs
+
+    --Term (Default: 'pass')
+            Term to search in user description field
+
+    --Acls (Default: 'Domain object')
+            Interesting ACLs on an object
+
+Example: .\ADCollector.exe --SPNs --Term key --ACLs 'CN=Domain Admins,CN=Users,DC=lab,DC=local'
 ```
 
 
