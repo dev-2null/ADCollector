@@ -36,6 +36,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Group Policy Preference cpassword in SYSVOL/Cache
 * Effective GPOs on the current user/computer
 * Restricted groups
+* Nested Group Membership
 
 ## Usage
 ```bat
@@ -97,6 +98,7 @@ Example: .\ADCollector.exe --SPNs --Term key --ACLs 'CN=Domain Admins,CN=Users,D
     5. Unusual DCSync accounts; Sensitive & not delegate accounts
     6. Effective GPOs on user/computer
     7. Restricted groups
+    8. Nested Group Membership
 
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)

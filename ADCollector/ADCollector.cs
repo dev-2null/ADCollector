@@ -3,17 +3,11 @@ using System.DirectoryServices.ActiveDirectory;
 using SearchScope = System.DirectoryServices.Protocols.SearchScope;
 using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.DirectoryServices;
-using System.Collections.Generic;
 using CommandLine;
-using CommandLine.Text;
-using System.Security.Principal;
-using System.Security.AccessControl;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace ADCollector2
 {
-    class ADCollector
+    public class ADCollector
     {
         private static Domain domain;
         private static Forest forest;
@@ -207,9 +201,6 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
 
-
-
-
             ///*
             //// * Not printing it since there could be thousands
             //// * of GPOs            
@@ -224,10 +215,6 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
             string gpoDn = "CN=Policies,CN=System," + rootDn;
             string[] gpoAttrs = { "displayName", "cn" };
             Functions.GetResponse(connection, gpoFilter, SearchScope.OneLevel, gpoAttrs, gpoDn, "gpo");
-
-
-
-
 
 
 
@@ -326,6 +313,7 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
 
+            Console.WriteLine();
             PrintGreen("[-] Constrained Delegation [with S4U2Self enabled] Accounts (Any Authentication Protocol):");
             Console.WriteLine();
             //TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
@@ -521,7 +509,10 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
 
-
+            Console.WriteLine();
+            PrintGreen("[-] Nested Group Membership For the Current User:");
+            Console.WriteLine();
+            Functions.GetNestedGroupMem(connection, rootDn, uName);
 
 
             connection.Dispose();

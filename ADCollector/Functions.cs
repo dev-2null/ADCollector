@@ -867,6 +867,38 @@ namespace ADCollector2
         }
 
 
+        public static void GetNestedGroupMem(LdapConnection connection, string rootDn, string user)
+        {
+            string userFilter = @"(&(sAMAccountType=805306368)(name=" + user + "))";
+
+            string[] nAttrs = { "distingushiedName" };
+
+            string userDn = GetSingleValue(connection, userFilter, SearchScope.Subtree, nAttrs, rootDn);
+
+
+            using (var userEntry = new DirectoryEntry("LDAP://" + userDn))
+            {
+                //https://www.morgantechspace.com/2015/08/active-directory-tokengroups-vs-memberof.html
+                //Use RefreshCach to get the constructed attribute tokenGroups.
+                userEntry.RefreshCache(new string[] { "tokenGroups" });
+
+                foreach (byte[] sid in userEntry.Properties["tokenGroups"])
+                {
+                    string groupSID = new SecurityIdentifier(sid, 0).ToString();
+                    try
+                    {
+                        Console.WriteLine("  * {0}",Helper.SidToName(groupSID));
+                    }
+                    catch
+                    {
+                        Console.WriteLine("  * Unresolvable Group SID {0}: ",groupSID);
+                    }
+                    
+                }
+            }
+        }
+
+
 
     }
 }
