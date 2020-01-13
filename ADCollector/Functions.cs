@@ -81,7 +81,7 @@ namespace ADCollector2
 
             SearchResponse response;
             PageResultResponseControl pageResControl;
-
+            
             // loop through each page
             while (true)
             {
@@ -195,6 +195,7 @@ namespace ADCollector2
 
         public static void GetAppliedGPOs(LdapConnection connection, string rootDn, string name, bool isPC = false)
         {
+
             //if it is a computer account or a user account
             string nFilter = isPC ? @"(&(sAMAccountType=805306369)(name=" + name + "))" : @"(&(sAMAccountType=805306368)(name=" + name + "))";
 
@@ -214,7 +215,7 @@ namespace ADCollector2
 
             //OU will not be affected by the block rule on itself
             int blockCounter = 0;
-            
+
             while (ou.Contains(","))
             {
 
@@ -236,7 +237,7 @@ namespace ADCollector2
                 {
                     break;
                 }
-                
+
             }
 
 
@@ -259,15 +260,13 @@ namespace ADCollector2
             }
 
 
-
-
-
         }
 
 
 
         public static void GetDomains(Forest currentForest)
         {
+           
             foreach (Domain domain in currentForest.Domains)
             {
                 try
@@ -290,6 +289,8 @@ namespace ADCollector2
                 }
 
             }
+
+            
         }
 
 
@@ -397,6 +398,7 @@ namespace ADCollector2
 
         public static void GetForestTrusts(Forest currentForest)
         {
+
             string sidStatus = "";
 
             if (currentForest.GetAllTrustRelationships().Count > 0)
@@ -426,6 +428,7 @@ namespace ADCollector2
 
                 Console.WriteLine("    {0,-30}{1,-30}{2,-15}{3,-20}{4,-10}", trustInfo.SourceName, trustInfo.TargetName, trustInfo.TrustType, trustInfo.TrustDirection, sidStatus);
             }
+            
         }
 
 
@@ -869,6 +872,7 @@ namespace ADCollector2
 
         public static void GetNestedGroupMem(LdapConnection connection, string rootDn, string user)
         {
+            
             string userFilter = @"(&(sAMAccountType=805306368)(name=" + user + "))";
 
             string[] nAttrs = { "distingushiedName" };
@@ -887,15 +891,16 @@ namespace ADCollector2
                     string groupSID = new SecurityIdentifier(sid, 0).ToString();
                     try
                     {
-                        Console.WriteLine("  * {0}",Helper.SidToName(groupSID));
+                        Console.WriteLine("  * {0}", Helper.SidToName(groupSID));
                     }
                     catch
                     {
-                        Console.WriteLine("  * Unresolvable Group SID {0}: ",groupSID);
+                        Console.WriteLine("  * Unresolvable Group SID {0}: ", groupSID);
                     }
-                    
+
                 }
             }
+            
         }
 
 

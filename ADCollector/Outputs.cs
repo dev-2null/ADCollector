@@ -142,6 +142,7 @@ namespace ADCollector2
 
         public static void PrintSPNs(SearchResponse response, string spnName)
         {
+
             Helper.UACFlags passNotExp = Helper.UACFlags.DONT_EXPIRE_PASSWD;
 
             foreach (SearchResultEntry entry in response.Entries)
@@ -153,17 +154,24 @@ namespace ADCollector2
                 //User accounts with SPN set
                 if (spnName == "null")
                 {
-                    var uac = Enum.Parse(typeof(Helper.UACFlags), entry.Attributes["userAccountControl"][0].ToString());
-
-                    Console.Write("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
-
-                    if (uac.ToString().Contains(passNotExp.ToString()))
+                    try //If enumerate using DA account, response entry does not contain "userAccountControl" attribute
                     {
-                        Console.WriteLine("    [DontExpirePasswd]");
+                        var uac = Enum.Parse(typeof(Helper.UACFlags), entry.Attributes["userAccountControl"][0].ToString());
+
+                        Console.Write("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
+
+                        if (uac.ToString().Contains(passNotExp.ToString()))
+                        {
+                            Console.WriteLine("    [DontExpirePasswd]");
+                        }
+                        else
+                        {
+                            Console.WriteLine();
+                        }
                     }
-                    else
+                    catch
                     {
-                        Console.WriteLine();
+                        Console.WriteLine("  * sAMAccountName:  {0}", entry.Attributes["sAMAccountName"][0]);
                     }
 
 
@@ -196,10 +204,9 @@ namespace ADCollector2
                     }
                     Console.WriteLine();
                 }
-
-
-
             }
+
+
         }
 
 

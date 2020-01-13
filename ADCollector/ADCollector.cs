@@ -4,6 +4,7 @@ using SearchScope = System.DirectoryServices.Protocols.SearchScope;
 using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.DirectoryServices;
 using CommandLine;
+using System.Collections.Generic;
 
 namespace ADCollector2
 {
@@ -12,6 +13,7 @@ namespace ADCollector2
         private static Domain domain;
         private static Forest forest;
         private static bool ldaps;
+        public static List<String> trustdomains = new List<String>();
 
 
         public class Options
@@ -131,7 +133,18 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
         public static void Collector(bool spns, string term, string aclObject)
         {
-            
+
+            foreach (TrustRelationshipInformation trustInfo in Domain.GetCurrentDomain().GetAllTrustRelationships())
+            {
+                trustdomains.Add(trustInfo.TargetName);
+            }
+
+            foreach (TrustRelationshipInformation trustInfo in Forest.GetCurrentForest().GetAllTrustRelationships())
+            {
+                trustdomains.Add(trustInfo.TargetName);
+            }
+
+
             //root DSE entry
             var rootDSE = new DirectoryEntry("LDAP://" + domain.Name + "/rootDSE");
 
@@ -201,15 +214,15 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
 
-            ///*
-            //// * Not printing it since there could be thousands
-            //// * of GPOs            
-            //// * Just cache CN with DisplayName in a dictionary
-            //// * for future usage (PrintSearchResGplink)          
-            //Console.WriteLine();
-            //PrintGreen("[-] Group Policies");
-            //Console.WriteLine();
-            //*/
+            /*
+            // * Not printing it since there could be thousands
+            // * of GPOs            
+            // * Just cache CN with DisplayName in a dictionary
+            // * for future usage (PrintSearchResGplink)          
+            Console.WriteLine();
+            PrintGreen("[-] Group Policies");
+            Console.WriteLine();
+            */
 
             string gpoFilter = @"(objectCategory=groupPolicyContainer)";
             string gpoDn = "CN=Policies,CN=System," + rootDn;
@@ -225,12 +238,6 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
             string[] domainAttrs = { "minPWDLength", "maxPWDAge", "lockoutThreshold", "lockoutDuration", "gplink", "ms-DS-MachineAccountQuota" };
             Functions.GetResponse(connection, domainFilter, SearchScope.Subtree, domainAttrs, rootDn, "domain");
 
-
-
-            Console.WriteLine();
-            PrintGreen("[-] Domains in the current forest:");
-            Console.WriteLine();
-            Functions.GetDomains(forest);
 
 
 
@@ -284,20 +291,55 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
             Functions.GetDomainTrusts(domain);
 
 
+            if (ADCollector.trustdomains.Contains(forest.Name) || forest.Name == Forest.GetCurrentForest().Name)
+            //If enumerating the target forest root domain but without any relationship
+            {
 
-            Console.WriteLine();
-            PrintGreen("[-] Trusted Domain Objects in the current forest root domain:");
-            Console.WriteLine();
-            string[] domattrsToReturn = { "name" };
-            string TDOforestDn = "CN=System," + forestDn;
-            Functions.GetResponse(connection, TDOFilter, SearchScope.Subtree, domattrsToReturn, TDOforestDn, "single");
+                Console.WriteLine();
+                PrintGreen("[-] Domains in the current forest:");
+                Console.WriteLine();
+                Functions.GetDomains(forest);
+
+
+                Console.WriteLine();
+                PrintGreen("[-] Trusted Domain Objects in the current forest root domain:");
+                Console.WriteLine();
+                string[] domattrsToReturn = { "name" };
+                string TDOforestDn = "CN=System," + forestDn;
+                Functions.GetResponse(connection, TDOFilter, SearchScope.Subtree, domattrsToReturn, TDOforestDn, "single");
+
+
+                Console.WriteLine();
+                PrintGreen("[-] Forest Trust Relationships:");
+                Console.WriteLine();
+                Functions.GetForestTrusts(forest);
 
 
 
-            Console.WriteLine();
-            PrintGreen("[-] Forest Trust Relationships:");
-            Console.WriteLine();
-            Functions.GetForestTrusts(forest);
+                Console.WriteLine();
+                PrintGreen("[-] Effective GPOs On the Current Computer:");
+                Console.WriteLine();
+                string pcName = Environment.GetEnvironmentVariable("COMPUTERNAME");
+                Functions.GetAppliedGPOs(connection, rootDn, pcName, true);
+
+
+
+                Console.WriteLine();
+                PrintGreen("[-] Effective GPOs On the Current User:");
+                Console.WriteLine();
+                string uName = Environment.GetEnvironmentVariable("USERNAME");
+                Functions.GetAppliedGPOs(connection, rootDn, uName);
+
+
+
+
+                Console.WriteLine();
+                PrintGreen("[-] Nested Group Membership For the Current User:");
+                Console.WriteLine();
+                Functions.GetNestedGroupMem(connection, rootDn, uName);
+            }
+            
+
 
 
 
@@ -349,7 +391,7 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
                 PrintGreen("[-] Accounts with MSSQL SPNs:");
                 Console.WriteLine();
                 string mssqlFilter = @"(servicePrincipalName=mssql*)";
-                string[] spnAttrs = { "sAMAccountName","servicePrincipalName" };
+                string[] spnAttrs = { "sAMAccountName", "servicePrincipalName" };
                 Functions.GetResponse(connection, mssqlFilter, SearchScope.Subtree, spnAttrs, rootDn, "spn", "mssql");
 
 
@@ -431,12 +473,12 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
 
-            //Console.WriteLine();
-            //PrintGreen("[-] Confidential Attributes:");
-            //Console.WriteLine();
-            //string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
-            //string[] confidentialAttrs = { "name" };
-            //Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
+            Console.WriteLine();
+            PrintGreen("[-] Confidential Attributes:");
+            Console.WriteLine();
+            string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
+            string[] confidentialAttrs = { "name" };
+            Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
 
 
 
@@ -485,34 +527,11 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
             Functions.GetInterestingGPOAcls(gpoDn, forestDn);
 
 
-
-            Console.WriteLine();
-            PrintGreen("[-] Effective GPOs On the Current Computer:");
-            Console.WriteLine();
-            string pcName = Environment.GetEnvironmentVariable("COMPUTERNAME");
-            Functions.GetAppliedGPOs(connection, rootDn, pcName, true);
-
-
-
-            Console.WriteLine();
-            PrintGreen("[-] Effective GPOs On the Current User:");
-            Console.WriteLine();
-            string uName = Environment.GetEnvironmentVariable("USERNAME");
-            Functions.GetAppliedGPOs(connection, rootDn, uName);
-
-
-
             Console.WriteLine();
             PrintGreen("[-] Restricted Groups:");
             Console.WriteLine();
             Functions.GetRestrictedGroup(rootDn);
 
-
-
-            Console.WriteLine();
-            PrintGreen("[-] Nested Group Membership For the Current User:");
-            Console.WriteLine();
-            Functions.GetNestedGroupMem(connection, rootDn, uName);
 
 
             connection.Dispose();
