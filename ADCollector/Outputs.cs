@@ -14,6 +14,7 @@ namespace ADCollector2
         public static readonly Dictionary<string, string> gpos = new Dictionary<string, string>();
         public static IDictionary<string, int> dcsyncCounter = new Dictionary<string, int>();
 
+
         public static void PrintSingle(SearchResponse response, string attr)
         {
             foreach (SearchResultEntry entry in response.Entries)
@@ -50,7 +51,7 @@ namespace ADCollector2
                 try
                 {
                     if (attr == "") { }
-
+                    
                     else if (entry.Attributes[attr][0] is string)
                     {
                         for (int i = 0; i < entry.Attributes[attr].Count; i++)
@@ -60,12 +61,25 @@ namespace ADCollector2
                     }
                     else if (entry.Attributes[attr][0] is byte[])
                     {
-                        for (int i = 0; i < entry.Attributes[attr].Count; i++)
+                        //Resolve Security Descriptor
+                        //From The .Net Developer Guide to Directory Services Programming Listing 8.2. Listing the DACL
+                        ActiveDirectorySecurity ads = new ActiveDirectorySecurity();
+                        ads.SetSecurityDescriptorBinaryForm((byte[])entry.Attributes[attr][0]);
+                        var rules = ads.GetAccessRules(true,true, typeof(NTAccount));
+                        foreach (ActiveDirectoryAccessRule rule in rules)
                         {
-                            Console.WriteLine("    - {0}: {1}",
+                            Console.WriteLine("    - {0}: {1} ([ControlType: {2}] Rights: {3})",
                                 attr.ToUpper(),
-                                System.Text.Encoding.ASCII.GetString((byte[])entry.Attributes[attr][i]));
+                                rule.IdentityReference.ToString(),
+                                rule.AccessControlType.ToString(),
+                                rule.ActiveDirectoryRights.ToString());
                         }
+                        //for (int i = 0; i < entry.Attributes[attr].Count; i++)
+                        //{
+                        //    Console.WriteLine("    - {0}: {1}",
+                        //        attr.ToUpper(),
+                        //        System.Text.Encoding.ASCII.GetString((byte[])entry.Attributes[attr][i]));
+                        //}
                     }
                     else
                     {
