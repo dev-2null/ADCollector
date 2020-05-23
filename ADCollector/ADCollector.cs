@@ -422,9 +422,11 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
             Console.WriteLine();
             PrintGreen("[-] Privileged Accounts:");
             Console.WriteLine();
-            string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
-            string[] AdminsAttrs = { "member", "sAMAccountName" };
-            Functions.GetResponse(connection, adminsFilter, SearchScope.Subtree, AdminsAttrs, rootDn, "multi");
+            //string adminsFilter = @"(&(objectClass=group)(|(name=Domain Admins)(name=Enterprise Admins)))";
+            //1.2.840.113556.1.4.1941 is the OID for LDAP_MATCHING_RULE_IN_CHAIN and LDAP_MATCHING_RULE_TRANSITIVE_EVAL
+            string adminsFilter = "(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=Domain Admins,CN=Users," + rootDn + "))";
+            string[] AdminsAttrs = {  "sAMAccountName", "memberOf", };
+            Functions.GetResponse(connection, adminsFilter, SearchScope.Subtree, AdminsAttrs, rootDn, "all");
 
 
 

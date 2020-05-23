@@ -97,12 +97,16 @@ namespace ADCollector2
             foreach (SearchResultEntry entry in response.Entries)
             {
                 var attrs = entry.Attributes;
-
+                Console.WriteLine("  * {0}\n", entry.DistinguishedName);
                 foreach (DirectoryAttribute attr in attrs.Values)
                 {
                     if (entry.Attributes[attr.Name][0] is string)
                     {
-                        Console.WriteLine("  * {0} : {1}", attr.Name.ToUpper(), entry.Attributes[attr.Name][0]);
+                        for (int i = 0; i < entry.Attributes[attr.Name].Count; i++)
+                        {
+                            Console.WriteLine("    - {0}: {1}", attr.Name.ToUpper(), entry.Attributes[attr.Name][i]);
+                        }
+                        //Console.WriteLine("  * {0} : {1}", attr.Name.ToUpper(), entry.Attributes[attr.Name][0]);
                     }
                     else if (entry.Attributes[attr.Name][0] is byte[])
                     {
