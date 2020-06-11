@@ -195,7 +195,6 @@ namespace ADCollector2
 
         public static void GetAppliedGPOs(LdapConnection connection, string rootDn, string name, bool isPC = false)
         {
-
             //if it is a computer account or a user account
             string nFilter = isPC ? @"(&(sAMAccountType=805306369)(name=" + name + "))" : @"(&(sAMAccountType=805306368)(name=" + name + "))";
 
@@ -216,29 +215,36 @@ namespace ADCollector2
             //OU will not be affected by the block rule on itself
             int blockCounter = 0;
 
-            while (ou.Contains(","))
+            try
             {
-
-                using (var entry = new DirectoryEntry("LDAP://" + ou))
+                while (ou.Contains(","))
                 {
-                    isBlocking = Outputs.PrintGplink(entry, ou, isBlocking, blockCounter);
 
-                    if (isBlocking)
+                    using (var entry = new DirectoryEntry("LDAP://" + ou))
                     {
-                        blockCounter += 1;
+                        isBlocking = Outputs.PrintGplink(entry, ou, isBlocking, blockCounter);
+
+                        if (isBlocking)
+                        {
+                            blockCounter += 1;
+                        }
                     }
-                }
 
-                if (ou.Contains(","))
-                {
-                    ou = ou.Substring(ou.IndexOf(",") + 1);
-                }
-                else
-                {
-                    break;
-                }
+                    if (ou.Contains(","))
+                    {
+                        ou = ou.Substring(ou.IndexOf(",") + 1);
+                    }
+                    else
+                    {
+                        break;
+                    }
 
+                }
+            }catch(Exception e)
+            {
+                Console.WriteLine(e.Message);
             }
+            
 
 
             //get GPO applied on the site
@@ -452,6 +458,20 @@ namespace ADCollector2
                 Console.WriteLine("    MaxRenewAge:             {0} Days", data["Kerberos Policy"]["MaxRenewAge"]);
                 Console.WriteLine("    MaxClockSkew:            {0} Minutes", data["Kerberos Policy"]["MaxClockSkew"]);
                 Console.WriteLine("    TicketValidateClient:    {0}", data["Kerberos Policy"]["TicketValidateClient"]);
+                Console.WriteLine();
+                Console.WriteLine("    MinimumPasswordAge:      {0} ", data["System Access"]["MinimumPasswordAge"]);
+                Console.WriteLine("    MaximumPasswordAge:      {0} ", data["System Access"]["MaximumPasswordAge"]);
+                Console.WriteLine("    MinimumPasswordLength:   {0} ", data["System Access"]["MinimumPasswordLength"]);
+                Console.WriteLine("    PasswordComplexity:      {0} ", data["System Access"]["PasswordComplexity"]);
+                Console.WriteLine("    PasswordHistorySize:     {0} ", data["System Access"]["PasswordHistorySize"]);
+                if (!string.IsNullOrEmpty(data["System Access"]["LockoutBadCount"]))
+                {
+                    Console.WriteLine("    LockoutBadCount:         {0} ", data["System Access"]["LockoutBadCount"]);
+                    Console.WriteLine("    LockoutDuration:         {0} Minutes", data["System Access"]["LockoutDuration"]);
+                    Console.WriteLine("    ResetLockoutCount:       {0} Minutes", data["System Access"]["ResetLockoutCount"]);
+                }
+
+
 
             }
             catch (Exception e)
@@ -870,10 +890,10 @@ namespace ADCollector2
         }
 
 
-        public static void GetNestedGroupMem(LdapConnection connection, string rootDn, string user)
+        public static void GetNestedGroupMem(LdapConnection connection, string rootDn, string user, bool isPC = false)
         {
-            
-            string userFilter = @"(&(sAMAccountType=805306368)(name=" + user + "))";
+            //if it is a computer account or a user account
+            string userFilter = isPC ? @"(&(sAMAccountType=805306369)(name=" + user + "))" : @"(&(sAMAccountType=805306368)(name=" + user + "))";
 
             string[] nAttrs = { "distingushiedName" };
 

@@ -208,7 +208,7 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
             Console.WriteLine();
-            PrintGreen("[-] Kerberos Policy:");
+            PrintGreen("[-] Kerberos Policy & System Access:");
             Console.WriteLine();
             Functions.GetDomainPolicy(domain.Name);
 
@@ -328,18 +328,18 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
                 PrintGreen("[-] Effective GPOs On the Current User:");
                 Console.WriteLine();
                 string uName = Environment.GetEnvironmentVariable("USERNAME");
-                Functions.GetAppliedGPOs(connection, rootDn, uName);
-
-
+                bool isPC = uName.Contains("$");
+                uName =  isPC ? uName.Replace("$", string.Empty) : uName;
+                Functions.GetAppliedGPOs(connection, rootDn, uName, isPC);
+                
 
 
                 Console.WriteLine();
                 PrintGreen("[-] Nested Group Membership For the Current User:");
                 Console.WriteLine();
-                Functions.GetNestedGroupMem(connection, rootDn, uName);
+                Functions.GetNestedGroupMem(connection, rootDn, uName, isPC);
             }
             
-
 
 
 
