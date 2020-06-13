@@ -339,8 +339,14 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
                 Console.WriteLine();
                 Functions.GetNestedGroupMem(connection, rootDn, uName, isPC);
             }
-            
 
+
+
+
+            Console.WriteLine();
+            PrintGreen("[-] Restricted Groups:");
+            Console.WriteLine();
+            Functions.GetRestrictedGroup(rootDn);
 
 
             Console.WriteLine();
@@ -474,22 +480,11 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
             Functions.GetResponse(connection, noPreAuthFilter, SearchScope.Subtree, noPreAuthAttrs, rootDn, "single");
 
 
-
-            Console.WriteLine();
-            PrintGreen("[-] Confidential Attributes:");
-            Console.WriteLine();
-            string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
-            string[] confidentialAttrs = { "name" };
-            Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
-
-
-
             Console.WriteLine();
             PrintGreen("[-] Interesting Descriptions on User Objects:");
             Console.WriteLine();
             Functions.GetInterestingDescription(connection, rootDn, term);
-
-
+            
 
             Console.WriteLine();
             PrintGreen("[-] Group Policy Preference Passwords in SYSVOL/Cache:");
@@ -530,9 +525,21 @@ Example: .\ADCollector.exe --SPNs --Term key --Acls 'CN=Domain Admins,CN=Users,D
 
 
             Console.WriteLine();
-            PrintGreen("[-] Restricted Groups:");
+            PrintGreen("[-] Confidential Attributes:");
             Console.WriteLine();
-            Functions.GetRestrictedGroup(rootDn);
+            string confidentialFilter = @"(searchFlags:1.2.840.113556.1.4.803:=128)";
+            string[] confidentialAttrs = { "name" };
+            Functions.GetResponse(connection, confidentialFilter, SearchScope.Subtree, confidentialAttrs, schemaNamingContext, "single");
+
+
+
+            Console.WriteLine();
+            PrintGreen("[-] LAPS Password View Access:");
+            Console.WriteLine();
+            string ouFilter = "(objectClass=organizationalUnit)";
+            Functions.GetResponse(connection, ouFilter, SearchScope.Subtree, confidentialAttrs, rootDn, "ou");
+            Functions.GetLAPSView(forestDn);
+
 
 
 
