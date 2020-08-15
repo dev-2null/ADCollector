@@ -64,6 +64,7 @@ Usage: ADCollector.exe -h
     --Choice (Command Line Option For Interactive Menu)    
     --Parameter (Parameter Value For Options in Interactive Menu)
 Example: .\ADCollector.exe
+         .\ADCollector.exe --DC 10.10.10.1
          .\ADCollector.exe --Domain domain.local --Username user --Password pass
          .\ADCollector.exe --Domain domain.local --Username user --Password pass --DC 10.10.10.1
          .\ADCollector.exe --Domain domain.local --Username user --Password pass --Choice 1
