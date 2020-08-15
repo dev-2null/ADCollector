@@ -1,102 +1,172 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.DirectoryServices;
+using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Principal;
 using System.Text;
+using static ADCollector.Natives;
 
-namespace ADCollector2
+namespace ADCollector
 {
     public class Helper
     {
-        [Flags]
-        public enum Functionality
+       
+       
+        public static void PrintGreen(string output)
         {
-            DS_BEHAVIOR_WIN2000 = 0,
-            DS_BEHAVIOR_WIN2003_WITH_MIXED_DOMAINS = 1,
-            DS_BEHAVIOR_WIN2003 = 2,
-            DS_BEHAVIOR_WIN2008 = 3,
-            DS_BEHAVIOR_WIN2008R2 = 4,
-            DS_BEHAVIOR_WIN2012 = 5,
-            DS_BEHAVIOR_WIN2012R2 = 6,
-            DS_BEHAVIOR_WIN2016 = 7
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(output);
+            Console.ResetColor();
         }
 
 
-        //userAccountControl attribute ([MS-ADTS] section 2.2.16) TD flag 
-        [Flags]
-        public enum UACFlags
+
+        public static void PrintYellow(string output)
         {
-            SCRIPT = 0x1,
-            ACCOUNT_DISABLE = 0x2,
-            HOMEDIR_REQUIRED = 0x8,
-            LOCKOUT = 0x10,
-            PASSWD_NOTREQD = 0x20,
-            PASSWD_CANT_CHANGE = 0x40,
-            ENCRYPTED_TEXT_PASSWORD_ALLOWED = 0x80,
-            NORMAL_ACCOUNT = 0x200,
-            INTERDOMAIN_TRUST_ACCOUNT = 0x800,
-            WORKSTATION_TRUST_ACCOUNT = 0x1000,
-            SERVER_TRUST_ACCOUNT = 0x2000,
-            DONT_EXPIRE_PASSWD = 0x10000,
-            SMARTCART_REQUIRED = 0x40000,
-            TRUSTED_FOR_DELEGATION = 0x80000,
-            NOT_DELEGATED = 0x100000,
-            USE_DES_KEY_ONLY = 0x200000,
-            DONT_REQUIRE_PREAUTH = 0x400000,
-            PASSWORD_EXPIRED = 0x800000,
-            TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION = 0x1000000,
-            NO_AUTH_DATA_REQUIRED = 0x2000000,
-            PARTIAL_SECRETS_ACCOUNT = 0x4000000
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(output);
+            Console.ResetColor();
         }
 
 
 
 
-        // ([MS-ADTS] section 6.1.6.7.9) trustAttributes
-        [Flags]
-        public enum TrustAttributes
+        public static string ResolveDNSRecord(byte[] dnsByte)
         {
-            NON_TRANSITIVE = 1,
-            UPLEVEL_ONLY = 2,
-            QUARANTINED_DOMAIN = 4,
-            FOREST_TRANSITIVE = 8,
-            CROSS_ORGANIZARION = 16,
-            WITHIN_FOREST = 32,
-            TREAT_AS_EXTERNAL = 64
+            var rdatatype = dnsByte[2];
+
+            string ip = null;
+
+            if (rdatatype == 1)
+            {
+                ip = dnsByte[24] + "." + dnsByte[25] + "." + dnsByte[26] + "." + dnsByte[27];
+            }
+            return ip;
         }
 
 
 
 
-        // ([MS-ADTS] section 6.1.6.7.12) trustDirection
-        [Flags]
-        public enum TrustDirection
+        public static DateTime ConvertWhenCreated(string when)
         {
-            DISABLE = 0,
-            INBOUND = 1,
-            OUTBOUND = 2,
-            BIDIRECTIONAL = 3
+            string format = "yyyyMMddHHmmss.0Z";
+            DateTime whenCreated = DateTime.ParseExact(when, format, System.Globalization.CultureInfo.InvariantCulture);
+            return whenCreated;
         }
 
 
 
-        //// ([MS-KILE section 2.2.7) 
-        //[Flags]
-        //public enum EncryptionType
+        public static int ConvertLargeInteger(Object LI, bool useDay)
+        {
+            try
+            {
+                var ILI = (IAdsLargeInteger)LI;
+                var lLI = ILI.HighPart * 0x100000000 + ILI.LowPart;
+                Int32 intLI;
+                if (useDay)
+                {
+                    intLI = TimeSpan.FromTicks(lLI).Days * -1;
+                }
+                else
+                {
+                    intLI = TimeSpan.FromTicks(lLI).Minutes * -1;
+                }
+                return intLI;
+
+            }
+            catch (Exception e)
+            {
+                PrintYellow("[x] ERROR: " + e.Message);
+                return 0;
+            }
+            
+        }
+
+
+        //public static void ConvertSD(byte[] sd)
         //{
-        //    DES_CBC_CRC = 1,
-        //    DES_CBC_MD5 = 2,
-        //    RC4_HMAC_MD5 = 4,
-        //    AES128_CTS_HMAC_SHA1_96 = 8,
-        //    AES256_CTS_HMAC_SHA1_96 = 16
+
+        //    //Resolve Security Descriptor
+        //    //From The .Net Developer Guide to Directory Services Programming Listing 8.2. Listing the DACL
+        //    ActiveDirectorySecurity ads = new ActiveDirectorySecurity();
+
+        //    ads.SetSecurityDescriptorBinaryForm((byte[])entry.Attributes[attr][0]);
+
+        //    var rules = ads.GetAccessRules(true, true, typeof(NTAccount));
+
+        //    foreach (ActiveDirectoryAccessRule rule in rules)
+        //    {
+        //        Console.WriteLine("    - {0}: {1}",
+        //        Console.WriteLine("    - {0}: {1} ([ControlType: {2}] Rights: {3})",
+        //            attr.ToUpper(),
+        //            System.Text.Encoding.ASCII.GetString((byte[])entry.Attributes[attr][i]));
+        //        rule.IdentityReference.ToString(),
+        //                    rule.AccessControlType.ToString(),
+        //                    rule.ActiveDirectoryRights.ToString());
+        //    }
+
+
         //}
+
+
+
+        public static string BuildFilterOctetString(byte[] bytes)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                sb.AppendFormat("\\{0}", bytes[i].ToString("X2"));
+            }
+            return sb.ToString();
+        }
+
+
+
+
+
+        [ComImport, Guid("9068270b-0939-11d1-8be1-00c04fd8d503"), InterfaceType(ComInterfaceType.InterfaceIsDual)]
+        internal interface IAdsLargeInteger
+        {
+            long HighPart
+            {
+                [SuppressUnmanagedCodeSecurity]
+                get; [SuppressUnmanagedCodeSecurity]
+                set;
+            }
+
+            long LowPart
+            {
+                [SuppressUnmanagedCodeSecurity]
+                get; [SuppressUnmanagedCodeSecurity]
+                set;
+            }
+        }
+
+
+
+
+
+        public static string GetNameFromSID(string sid)
+        {
+            string sidFilter = string.Format("(objectSid={0})", sid);
+
+            string[] sidAttr = { "cn" };
+
+            var sidResposne = Collector.GetSingleResponse(Collector.rootDn, sidFilter, System.DirectoryServices.Protocols.SearchScope.Subtree, sidAttr, false);
+
+            string name =  sidResposne.Attributes["cn"][0].ToString()  + "@" + Collector.domainName.ToUpper();
+
+            return name;
+
+        }
 
 
 
 
 
         //https://support.microsoft.com/en-us/kb/243330
-
-        public static string SidToName(string sid)
+        public static string ConvertSIDToName(string sid)
         {
             switch (sid)
             {
@@ -223,15 +293,77 @@ namespace ADCollector2
                 case "S-1-5-32-580":
                     return "BUILTIN\\Access Control Assistance Operators";
                 default:
-                    //https://stackoverflow.com/questions/499053/how-can-i-convert-from-a-sid-to-an-account-name-in-c-sharp
-                    string name = new SecurityIdentifier(sid).Translate(typeof(NTAccount)).ToString();
+                    string name;
+                    try
+                    {
+                        //https://stackoverflow.com/questions/499053/how-can-i-convert-from-a-sid-to-an-account-name-in-c-sharp
+                        name = new SecurityIdentifier(sid).Translate(typeof(NTAccount)).ToString();
+                    }
+                    catch
+                    {
+                        name  = GetNameFromSID(sid); 
+                    }
                     return name;
+                    
             }
         }
+    }
 
 
 
 
+    public struct Trust
+    {
+        public string SourceDomainName;
+        public string TargetDomainName;
+        public string NetbiosName;
+        //public string DomainSid;
+        public bool IsTransitive;
+        public TrustDirection TrustDirection;
+        public TrustType TrustType;
+        public bool FilteringSID;
+        
 
     }
+
+
+    public struct AppliedGPOs
+    {
+        public string OUDn;
+        public bool IsBlocking;
+        public List<GPOAttributes> LinkedGPOs;
+    }
+
+
+    public struct GPOAttributes
+    {
+        public string GPOName;
+        public string GPOID;
+        public bool isEnforced;
+    }
+
+
+    public struct GPP
+    {
+        public string UserName;
+        public string NewName;
+        public string CPassword;
+        public string Changed;
+        public string Path;
+        public string AccountName;
+        public string RunAs;
+    }
+
+
+
+    public struct ACLs
+    {
+        public string IdentityReference;
+        public string IdentitySID;
+        public string ActiveDirectoryRights;
+        public string ObjectType;
+        public string ObjectDN;
+    }
+
+
 }
