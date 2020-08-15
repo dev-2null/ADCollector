@@ -83,7 +83,6 @@ Interactive Menu:
     8.  - NetLocalGroupGetMembers
     9.  - NetWkstaUserEnum
     ===================================
-Example: .\ADCollector.exe --SPNs --Term key --ACLs 'CN=Domain Admins,CN=Users,DC=lab,DC=local'
 ```
 
 
