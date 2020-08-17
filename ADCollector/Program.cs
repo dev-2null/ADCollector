@@ -74,11 +74,12 @@ Usage: ADCollector.exe -h
             Enumerate the specified domain
     --Ldaps (Default: LDAP)
             Use LDAP over SSL/TLS
+    --DC (IP Address of the Domain Controller)
     --UserName (Alternative UserName to Connect LDAP)
     --Password (Alternative LDAP Credential)
     --Interactive (Enter Interactive Menu)
     --Choice (Command Line Option For Interactive Menu)    
-    --Parameter (Parameter Value For Options in Interactive Menu)
+    --Param (Parameter Value For Options in Interactive Menu)
 Example: .\ADCollector.exe
          .\ADCollector.exe --Domain domain.local --Username user --Password pass
          .\ADCollector.exe --Domain domain.local --Username user --Password pass --DC 10.10.10.1
@@ -93,7 +94,7 @@ Interactive Menu:
     2.  - Find Single LDAP DNS Record
     3.  - SPN Scan
     4.  - Find Nested Group Membership
-    5.  - Search Interesting Term on Users
+    5.  - Search Interesting Term on User Description Fields
     6.  - Enumerate Interesting ACLs on an Object
     7.  - NetSessionEnum
     8.  - NetLocalGroupGetMembers
