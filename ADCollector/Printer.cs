@@ -139,7 +139,10 @@ namespace ADCollector
 
         public static void PrintNestedGroupMem(bool onComputer = false, string customUser = null)
         {
-            if (customUser.Contains("$")) { onComputer = true; }
+            if (customUser != null)
+            {
+                if (customUser.Contains("$")) { onComputer = true; }
+            }
 
             var groupList = Utilities.GetNestedGroupMem(out string guser, onComputer, customUser);
 
