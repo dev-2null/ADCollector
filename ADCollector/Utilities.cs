@@ -98,28 +98,44 @@ namespace ADCollector
 
             string userDn = GetDN(onComputer, out string getdnuser, customUser);
 
-            guser = getdnuser.ToUpper();
+            if (userDn == null)
+            {
+                guser = null;
+            }
+            else
+            {
+                guser = getdnuser.ToUpper();
+            }
+            
 
             if (!string.IsNullOrEmpty(userDn))
             {
-                using (var userEntry = GetSingleEntry(userDn))
+                try
                 {
-                    //https://www.morgantechspace.com/2015/08/active-directory-tokengroups-vs-memberof.html
-                    //Use RefreshCach to get the constructed attribute tokenGroups.
-                    userEntry.RefreshCache(new string[] { "tokenGroups" });
-
-                    foreach (byte[] sid in userEntry.Properties["tokenGroups"])
+                    using (var userEntry = GetSingleEntry(userDn))
                     {
-                        string groupSID = new SecurityIdentifier(sid, 0).ToString();
+                        //https://www.morgantechspace.com/2015/08/active-directory-tokengroups-vs-memberof.html
+                        //Use RefreshCach to get the constructed attribute tokenGroups.
+                        userEntry.RefreshCache(new string[] { "tokenGroups" });
 
-                        SIDList.Add(groupSID.ToUpper());
+                        foreach (byte[] sid in userEntry.Properties["tokenGroups"])
+                        {
+                            string groupSID = new SecurityIdentifier(sid, 0).ToString();
+
+                            SIDList.Add(groupSID.ToUpper());
+                        }
                     }
-                }
 
-                //NT AUTHORITY\Authenticated Users
-                SIDList.Add("S-1-5-11");
-                //NT AUTHORITY\This Organization
-                SIDList.Add("S-1-5-15");
+                    //NT AUTHORITY\Authenticated Users
+                    SIDList.Add("S-1-5-11");
+                    //NT AUTHORITY\This Organization
+                    SIDList.Add("S-1-5-15");
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine("[X] ERROR: {0}", e.Message);
+                }
+                
             }
 
             return SIDList;
@@ -137,6 +153,7 @@ namespace ADCollector
 
         public static Dictionary<string, string> GetWMIPolicies()
         {
+
             Dictionary<string, string> wmiPolicies = new Dictionary<string, string>();
 
             string wmiDn = "CN=SOM,CN=WMIPolicy,CN=System," + rootDn;
@@ -158,7 +175,7 @@ namespace ADCollector
                 Helper.PrintYellow("[x] ERROR: " + e.Message);
                 return null;
             }
-
+           
         }
 
 
@@ -726,38 +743,46 @@ namespace ADCollector
         public static List<string> GetMyOUs(string uname, string dn, bool onComputer = false)
         {
             List<string> ouList = new List<string>();
-
-            dn = dn.ToUpper();
-
-            while (dn.Contains(",OU"))
+            try
             {
-                if (dn.Contains(("CN=" + uname + ",")))
+                dn = dn.ToUpper();
+
+                while (dn.Contains(",OU"))
                 {
-                    dn = dn.Replace(("CN=" + uname + ",").ToUpper(), string.Empty);
+                    if (dn.Contains(("CN=" + uname + ",")))
+                    {
+                        dn = dn.Replace(("CN=" + uname + ",").ToUpper(), string.Empty);
+                    }
+                    else
+                    {
+                        dn = dn.Substring(dn.IndexOf(",OU") + 1);
+                    }
+                    ouList.Add(dn);
                 }
-                else
-                {
-                    dn = dn.Substring(dn.IndexOf(",OU") + 1);
-                }
+                //add Domain DN
+                dn = dn.Substring(dn.IndexOf(",DC=") + 1);
                 ouList.Add(dn);
-            }
-            //add Domain DN
-            dn = dn.Substring(dn.IndexOf(",DC=") + 1);
-            ouList.Add(dn);
 
-            if (onComputer)
+                if (onComputer)
+                {
+                    //add Site DN
+                    string site = GetMySite(uname);
+                    if (site == null) { return null; }
+
+                    string siteDn = "CN=" + site + ",CN=Sites,CN=Configuration," + forestDn;
+
+                    ouList.Add(siteDn);
+                }
+
+
+                return ouList;
+
+            }catch(Exception e)
             {
-                //add Site DN
-                string site = GetMySite(uname);
-                if (site == null) { return null; }
-
-                string siteDn = "CN=" + site + ",CN=Sites,CN=Configuration," + forestDn;
-
-                ouList.Add(siteDn);
+                Console.WriteLine("[X] ERROR: {0}", e.Message);
+                return null;
             }
             
-
-            return ouList;
         }
         
 

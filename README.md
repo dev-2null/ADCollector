@@ -62,7 +62,7 @@ Usage: ADCollector.exe -h
     --Password (Alternative LDAP Credential)
     --Interactive (Enter Interactive Menu)
     --Choice (Command Line Option For Interactive Menu)    
-    --Parameter (Parameter Value For Options in Interactive Menu)
+    --Param (Parameter Value For Options in Interactive Menu)
 Example: .\ADCollector.exe
          .\ADCollector.exe --DC 10.10.10.1
          .\ADCollector.exe --Domain domain.local --Username user --Password pass

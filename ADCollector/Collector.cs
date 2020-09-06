@@ -492,7 +492,8 @@ namespace ADCollector
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.Message);
+                    //Console.WriteLine(e.StackTrace);
+                    Console.WriteLine("[X] ERROR: {0}",e.Message);
                     yield break;
                 }
 
@@ -547,7 +548,10 @@ namespace ADCollector
 
             connection = (username != null) ?
                 new LdapConnection(identifier, new NetworkCredential(username, _password)) :
-                new LdapConnection(identifier);
+                new LdapConnection(identifier, new NetworkCredential(string.Empty, string.Empty))
+                {
+                    AuthType = AuthType.Anonymous
+                };
 
             connection.SessionOptions.Signing = true;
             connection.SessionOptions.Sealing = true;

@@ -524,7 +524,7 @@ namespace ADCollector
         {
 
             PrintGreen(string.Format("\n[-] Unusual DCSync Accounts:\n"));
-
+            if (dcSyncList == null) { return; }
             foreach (var user in dcSyncList)
             {
                 if (user.Value == 3)
