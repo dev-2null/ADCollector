@@ -438,6 +438,7 @@ namespace ADCollector
 
             request.Controls.Add(pageReqControl);
             request.Controls.Add(searchControl);
+
             try
             {
                 var response = (SearchResponse)connection.SendRequest(request);
@@ -548,10 +549,11 @@ namespace ADCollector
 
             connection = (username != null) ?
                 new LdapConnection(identifier, new NetworkCredential(username, _password)) :
-                new LdapConnection(identifier, new NetworkCredential(string.Empty, string.Empty))
-                {
-                    AuthType = AuthType.Anonymous
-                };
+                new LdapConnection(identifier);
+            //new LdapConnection(identifier, new NetworkCredential(string.Empty, string.Empty))
+            //{
+            //    AuthType = AuthType.Anonymous
+            //};
 
             connection.SessionOptions.Signing = true;
             connection.SessionOptions.Sealing = true;
