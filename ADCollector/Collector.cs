@@ -218,7 +218,7 @@ namespace ADCollector
 
 
             //Privileged Accounts
-            var privAccounts = Utilities.GetGeneral(rootDn, "(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=Domain Admins,CN=Users," + rootDn + "))", "MemberOf");
+            var privAccounts = Utilities.GetGeneral(rootDn, "(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin," + rootDn + "))", "MemberOf");
             Printer.PrintDirectoryAttrDict(privAccounts, "Privileged Accounts");
 
 
