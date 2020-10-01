@@ -839,20 +839,39 @@ namespace ADCollector
                         //2: The GPO Link is an enforced GPO.
                         isEnforced = int.Parse(matchGpoption.Groups[1].ToString()) == 2;
                         string gpoDn = "CN=" + gPOID + ",CN=Policies,CN=System," + rootDn;
-                        gPOName = GPOs[gPOID];
-                        //SecurityFiltering: Check if the target GPO applied to the current user
-                        isDenied = IsDeniedPolicy(gpoDn, SIDList);
 
-                        if (isDenied)
+                        try//in case the gpo was deleted
                         {
-                            gPOName += "  [X Denied]";
+                            gPOName = GPOs[gPOID];
+                            //SecurityFiltering: Check if the target GPO applied to the current user
+                            isDenied = IsDeniedPolicy(gpoDn, SIDList);
+
+                            if (isDenied)
+                            {
+                                gPOName += "  [X Denied]";
+                            }
+
+                            linkedGPOAttr.GPOID = gPOID;
+                            linkedGPOAttr.GPOName = gPOName;
+                            linkedGPOAttr.isEnforced = isEnforced;
+
+                            linkedGPOs.Add(linkedGPOAttr);
                         }
+                        catch { }
+                        //gPOName = GPOs[gPOID];
+                        ////SecurityFiltering: Check if the target GPO applied to the current user
+                        //isDenied = IsDeniedPolicy(gpoDn, SIDList);
 
-                        linkedGPOAttr.GPOID = gPOID;
-                        linkedGPOAttr.GPOName = gPOName;
-                        linkedGPOAttr.isEnforced = isEnforced;
+                        //if (isDenied)
+                        //{
+                        //    gPOName += "  [X Denied]";
+                        //}
 
-                        linkedGPOs.Add(linkedGPOAttr);
+                        //linkedGPOAttr.GPOID = gPOID;
+                        //linkedGPOAttr.GPOName = gPOName;
+                        //linkedGPOAttr.isEnforced = isEnforced;
+
+                        //linkedGPOs.Add(linkedGPOAttr);
                     }
                 }
                 //If a OU blocks inheritance

@@ -3,7 +3,7 @@ using CommandLine;
 
 namespace ADCollector
 {
-    class MainClass
+    public class MainClass
     {
 
         public static void Main(string[] args)
