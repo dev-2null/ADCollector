@@ -46,6 +46,9 @@ namespace ADCollector
         [Option("LDAPS", DefaultValue = false, HelpText = "LDAP over SSL/TLS")]
         public bool Ldaps { get; set; }
 
+        [Option("DisableSigning", DefaultValue = false, HelpText = "Disable Kerberos Encryption (with -LDAPS flag)")]
+        public bool DisableSigning { get; set; }
+
         [Option("UserName", DefaultValue = null, HelpText = "Alternative UserName")]
         public string Username { get; set; }
 
@@ -74,6 +77,8 @@ Usage: ADCollector.exe -h
             Enumerate the specified domain
     --Ldaps (Default: LDAP)
             Use LDAP over SSL/TLS
+    --DiableSigning (Default: Enabled)
+            With --Ldaps
     --DC (IP Address of the Domain Controller)
     --UserName (Alternative UserName to Connect LDAP)
     --Password (Alternative LDAP Credential)

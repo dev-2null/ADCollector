@@ -551,7 +551,7 @@ namespace ADCollector
             Console.WriteLine(@"   / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |   ");
             Console.WriteLine(@"  /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|   ");
             Console.WriteLine();
-            Console.WriteLine("   v2.0.0  by dev2null\r\n");
+            Console.WriteLine("   v2.0.1  by dev2null\r\n");
         }
 
     }

@@ -50,7 +50,7 @@ C:\Users> ADCollector.exe  -h
    / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |
   /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|
 
-  v2.0.0  by dev2null
+  v2.0.1  by dev2null
 
 Usage: ADCollector.exe -h
     
@@ -58,6 +58,9 @@ Usage: ADCollector.exe -h
             Enumerate the specified domain
     --Ldaps (Default: LDAP)
             Use LDAP over SSL/TLS
+    --DiableSigning (Default: Enabled)
+            With --Ldaps
+    --DC (IP Address of the Domain Controller)
     --UserName (Alternative UserName to Connect LDAP)
     --Password (Alternative LDAP Credential)
     --Interactive (Enter Interactive Menu)

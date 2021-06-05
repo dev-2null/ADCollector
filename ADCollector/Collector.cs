@@ -22,6 +22,7 @@ namespace ADCollector
         public static string domainName;
         public static string forestName;
         public static bool useLdaps;
+        public static bool disableSigning;
         public static string dc;
         public static int port;
         public static DirectoryEntry rootDSE;
@@ -42,6 +43,7 @@ namespace ADCollector
             username = options.Username;
             _password = options.Password;
             dc = options.DC;
+            disableSigning = options.DisableSigning;
 
 
             if (domainName != null && dc == null)
@@ -529,7 +531,8 @@ namespace ADCollector
         {
             try
             {
-                var entry = new DirectoryEntry("LDAP://" + dc + ":" + port + "/" + dn, username, _password);
+                //var entry = new DirectoryEntry("LDAP://" + dc + ":" + port + "/" + dn, username, _password);//, AuthenticationTypes.Secure | AuthenticationTypes.SecureSocketsLayer);
+                var entry = new DirectoryEntry("LDAP://" + dc + "/" + dn, username, _password);
                 _entryPool.Add(entry);
                 return entry;
             }
@@ -554,16 +557,20 @@ namespace ADCollector
             //{
             //    AuthType = AuthType.Anonymous
             //};
+            connection.SessionOptions.SecureSocketLayer = useLdaps ? true : false;
+            if (!disableSigning)
+            {
+                connection.SessionOptions.Signing = true;
+                connection.SessionOptions.Sealing = true;
+            }
 
-            connection.SessionOptions.Signing = true;
-            connection.SessionOptions.Sealing = true;
             connection.SessionOptions.ProtocolVersion = 3;
             connection.SessionOptions.ReferralChasing = ReferralChasingOptions.None;
             connection.SessionOptions.SendTimeout = new TimeSpan(0, 0, 10, 0);
             connection.Timeout = new TimeSpan(0, 0, 10, 0);
-
-            connection.SessionOptions.SecureSocketLayer = useLdaps ? true : false;
-
+            connection.AuthType = AuthType.Negotiate;
+            connection.SessionOptions.VerifyServerCertificate += delegate { return true; };
+            
             _ldapConnections.Add(connection);
             return connection;
         }
@@ -576,12 +583,17 @@ namespace ADCollector
             var connection = (username != null) ?
                 new LdapConnection(identifier, new NetworkCredential(username, _password)) :
                 new LdapConnection(identifier);
-
+            connection.SessionOptions.SecureSocketLayer = useLdaps ? true : false;
+            if (!disableSigning)
+            {
+                connection.SessionOptions.Signing = true;
+                connection.SessionOptions.Sealing = true;
+            }
             connection.SessionOptions.Signing = true;
             connection.SessionOptions.Sealing = true;
             connection.SessionOptions.ProtocolVersion = 3;
             connection.SessionOptions.ReferralChasing = ReferralChasingOptions.None;
-
+            connection.SessionOptions.VerifyServerCertificate += delegate { return true; };
             connection.Timeout = new TimeSpan(0, 5, 0);
 
             return connection;

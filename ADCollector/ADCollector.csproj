@@ -5,6 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">anycpu</Platform>
     <ProjectGuid>{EAC94F7D-9A81-4040-8425-B93B1A29DCA0}</ProjectGuid>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <OutputType>Exe</OutputType>
     <RootNamespace>ADCollector</RootNamespace>
     <AssemblyName>ADCollector</AssemblyName>
