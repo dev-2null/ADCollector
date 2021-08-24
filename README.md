@@ -23,6 +23,7 @@ _**This tool is still under construction. Features will be implemented can be se
 * Resources-based constrained delegation
 * MSSQL/Exchange(/RDP/PS) Remoting SPN accounts
 * User accounts with SPN set & password does not expire account
+* Protected Users
 * Confidential attributes
 * ASREQROAST (DontRequirePreAuth accounts)
 * AdminSDHolder protected accounts
@@ -37,7 +38,11 @@ _**This tool is still under construction. Features will be implemented can be se
 * Group Policy Preference cpassword in SYSVOL/Cache
 * Effective GPOs on the current user/computer
 * Nested Group Membership
+* Restricted Group
 * LAPS Password View Access
+* ADCS Configurations
+* Machine Owner
+* ACL Scan
 
 
 ## Usage
@@ -50,10 +55,10 @@ C:\Users> ADCollector.exe  -h
    / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |
   /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|
 
-  v2.0.1  by dev2null
+  v2.1.1  by dev2null
 
 Usage: ADCollector.exe -h
-    
+
     --Domain (Default: current domain)
             Enumerate the specified domain
     --Ldaps (Default: LDAP)
@@ -61,27 +66,35 @@ Usage: ADCollector.exe -h
     --DiableSigning (Default: Enabled)
             With --Ldaps
     --DC (IP Address of the Domain Controller)
+    --OU (Search under an Organizational Unit)
+    --ADCS (Only enumerate certificate services)
+    --ACLScan (Perform ACL scan against all objects in Domain/Configuration/Schema partitions if no OU is provided)
+    --Identity (The Identity used for ACL Scan)
     --UserName (Alternative UserName to Connect LDAP)
     --Password (Alternative LDAP Credential)
     --Interactive (Enter Interactive Menu)
-    --Choice (Command Line Option For Interactive Menu)    
+    --Choice (Command Line Option For Interactive Menu)
     --Param (Parameter Value For Options in Interactive Menu)
 Example: .\ADCollector.exe
-         .\ADCollector.exe --DC 10.10.10.1
+         .\ADCollector.exe --LDAPs --DisableSigning
+         .\ADCollector.exe --OU IT
+         .\ADCollector.exe --OU OU=IT,DC=domain,DC=local
+         .\ADCollector.exe --ADCS
+         .\ADCollector.exe --ACLScan --Identity user --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --Domain domain.local --Username user --Password pass
-         .\ADCollector.exe --Domain domain.local --Username user --Password pass --DC 10.10.10.1
-         .\ADCollector.exe --Domain domain.local --Username user --Password pass --Choice 1
-         .\ADCollector.exe --Domain domain.local --Username user --Password pass --Choice 3 --Param mssql*
+         .\ADCollector.exe --Domain domain.local --DC 10.10.10.1
+         .\ADCollector.exe --Domain domain.local --Choice 1
+         .\ADCollector.exe --Domain domain.local --Choice 3 --Param mssql*
 
 Interactive Menu:
     ===================================
-                Interative Menu          
+                Interative Menu
     0.  - EXIT
     1.  - Collect LDAP DNS Records
     2.  - Find Single LDAP DNS Record
     3.  - SPN Scan
     4.  - Find Nested Group Membership
-    5.  - Search Interesting Term on Users
+    5.  - Search Interesting Term on User Description Fields
     6.  - Enumerate Interesting ACLs on an Object
     7.  - NetSessionEnum
     8.  - NetLocalGroupGetMembers
@@ -128,7 +141,16 @@ Interactive Menu:
     6. RunAs: Run ADCollector under another user context
     7. Flexiable SPN Scan, DNS Records, Nested Group Membership, ACL Enumeration
     8. Add NetSessionEnum, NetLocalGroupGetMembers and NetWkstaUserEnum
-
+##### v 2.1.1:
+    1. Search under a specific OU
+    2. LAPS detailed view
+    3. Machine Owners
+    4. Restricted Groups
+    5. ADCS Configurations
+    6. ACL Scan
+    7. Bug Fix: SYSVOL access, Nested Group Membership
+    8. Replace external readINF dependency with custom implementation
+    9. Protected Users
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
 

@@ -8,12 +8,13 @@ namespace ADCollector
 
         public static void Main(string[] args)
         {
+            Printer.PrintBanner();
+
             Options options = new Options();
             
             if (!Parser.Default.ParseArguments(args, options)) { return; }
 
             Collector adc = new Collector(options);
-
 
             if (options.Choice != 0)
             {
@@ -58,6 +59,18 @@ namespace ADCollector
         [Option("DC", DefaultValue = null, HelpText = "Alternative Domain Controller (Hostname/IP) to connect to")]
         public string DC { get; set; }
 
+        [Option("OU", DefaultValue = null, HelpText = "Perform the Search under a specific Organizational Unit")]
+        public string OU { get; set; }
+
+        [Option("ACLScan", DefaultValue = false, HelpText = "Perform ACL scan for an Identity")]
+        public bool ACLScan { get; set; }
+
+        [Option("ADCS", DefaultValue = false, HelpText = "Perform AD Certificate Service Check")]
+        public bool ADCS { get; set; }
+
+        [Option("Identity", DefaultValue = null, HelpText = "The Identity for ACL scan")]
+        public string Identity { get; set; }
+
         [Option("Interactive", DefaultValue = null, HelpText = "Enter Interactive Menu")]
         public bool Interactive { get; set; }
 
@@ -80,16 +93,25 @@ Usage: ADCollector.exe -h
     --DiableSigning (Default: Enabled)
             With --Ldaps
     --DC (IP Address of the Domain Controller)
+    --OU (Search under an Organizational Unit)
+    --ADCS (Enumerate certificate services)
+    --ACLScan (Perform ACL scan against all objects in Domain/Configuration/Schema partitions if no OU is provided)
+    --Identity (The Identity used for ACL Scan)
     --UserName (Alternative UserName to Connect LDAP)
     --Password (Alternative LDAP Credential)
     --Interactive (Enter Interactive Menu)
     --Choice (Command Line Option For Interactive Menu)    
     --Param (Parameter Value For Options in Interactive Menu)
 Example: .\ADCollector.exe
+         .\ADCollector.exe --LDAPs --DisableSigning
+         .\ADCollector.exe --OU IT
+         .\ADCollector.exe --OU OU=IT,DC=domain,DC=local
+         .\ADCollector.exe --ADCS
+         .\ADCollector.exe --ACLScan --Identity user --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --Domain domain.local --Username user --Password pass
-         .\ADCollector.exe --Domain domain.local --Username user --Password pass --DC 10.10.10.1
-         .\ADCollector.exe --Domain domain.local --Username user --Password pass --Choice 1
-         .\ADCollector.exe --Domain domain.local --Username user --Password pass --Choice 3 --Param mssql*
+         .\ADCollector.exe --Domain domain.local --DC 10.10.10.1
+         .\ADCollector.exe --Domain domain.local --Choice 1
+         .\ADCollector.exe --Domain domain.local --Choice 3 --Param mssql*
 
 Interactive Menu:
     ===================================

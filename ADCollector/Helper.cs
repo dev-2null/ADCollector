@@ -1,10 +1,16 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
-using System.DirectoryServices;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Text;
+using System.Text.RegularExpressions;
 using static ADCollector.Natives;
 
 namespace ADCollector
@@ -143,8 +149,26 @@ namespace ADCollector
             }
         }
 
+        //SID <=> Name
+        public static string SIDName(string dn, string name)
+        {
+            var sidRx = new Regex("^S-1-.*");
+
+            if (sidRx.IsMatch(name))
+            {
+                return ConvertSIDToName(name);
+            }
+            else
+            {
+                var nameResult = Collector.GetSingleResultEntry(dn, $"(name={name})", System.DirectoryServices.Protocols.SearchScope.Subtree, new string[] {"objectsid"}, false);
+                try {
+                    return new SecurityIdentifier((byte[])nameResult.Attributes["objectsid"][0], 0).ToString();
+                }
+                catch { return null; }
+            }
 
 
+        }
 
 
         public static string GetNameFromSID(string sid)
@@ -153,16 +177,14 @@ namespace ADCollector
 
             string[] sidAttr = { "cn" };
 
-            var sidResposne = Collector.GetSingleResponse(Collector.rootDn, sidFilter, System.DirectoryServices.Protocols.SearchScope.Subtree, sidAttr, false);
+            var sidResposne = Collector.GetSingleResultEntry(Collector.rootDn, sidFilter, System.DirectoryServices.Protocols.SearchScope.Subtree, sidAttr, false);
+            if (sidResposne == null) { return null; }
 
-            string name =  sidResposne.Attributes["cn"][0].ToString()  + "@" + Collector.domainName.ToUpper();
+            string name = sidResposne.Attributes["cn"][0].ToString();//  + "@" + Collector.domainName.ToUpper();
 
             return name;
 
         }
-
-
-
 
 
         //https://support.microsoft.com/en-us/kb/243330
@@ -301,15 +323,171 @@ namespace ADCollector
                     }
                     catch
                     {
-                        name  = GetNameFromSID(sid); 
+                        name  = GetNameFromSID(sid);
                     }
                     return name;
                     
             }
         }
+
+
+        //From https://github.com/GhostPack/Certify/blob/2b1530309c0c5eaf41b2505dfd5a68c83403d031/Certify/Lib/DisplayUtil.cs#L316-L328
+        public static bool IsAdminSid(string sid)
+        {
+            return Regex.IsMatch(sid, @"^S-1-5-21-.+-(498|500|502|512|516|518|519|521)$")
+                   || sid == "S-1-5-9"
+                   || sid == "S-1-5-32-544";
+        }
+
+        public static bool IsLowPrivSid(string sid)
+        {
+            return Regex.IsMatch(sid, @"^S-1-5-21-.+-(513|515|545)$") // Domain Users, Domain Computers, Users
+                || sid == "S-1-1-0"   // Everyone
+                || sid == "S-1-5-11"; // Authenticated Users
+        }
+
+
+
+
+        //Adjusted from https://stackoverflow.com/questions/217902/reading-writing-an-ini-file
+        public static Dictionary<String, Dictionary<String, String>> ReadInf(String file)
+        {
+            Dictionary<String, Dictionary<String, String>> infDict = new Dictionary<string, Dictionary<string, string>>();
+            try
+            {
+                if (!File.Exists(file)) { return null; }
+
+                String inf = File.ReadAllText(file);
+
+                inf = Regex.Replace(inf, @"^\s*;.*$", "", RegexOptions.Multiline);
+
+                //^\[(.+?)\](\r\n.*)+
+                char[] removeSquare = new char[] { '[', ']' };
+
+                foreach (var section in Regex.Split(inf, @"\r\n\["))
+                {
+
+                    var tempSection = section + "\r\n";
+
+                    Dictionary<String, String> lines = new Dictionary<String, String>();
+
+                    var sectionName = (Regex.Match(tempSection, @"(.*?)\]\r\n", RegexOptions.Singleline)).Value.Trim('\r', '\n', '[', ']');
+
+                    foreach (Match m in Regex.Matches(tempSection, @"^\s*(.*?)\s*=(\s(.*?)\s)|(\r\n)$", RegexOptions.Multiline))
+                    {
+                        String key = m.Groups[1].Value.Trim(' ', '\r', '\n');
+                        String value = m.Groups[2].Value.Trim(' ', '\r', '\n');
+
+                        if (!lines.ContainsKey(key) && (!string.IsNullOrEmpty(key))) { lines[key] = value; }
+                    }
+
+                    if (!infDict.ContainsKey(sectionName)) { infDict[sectionName] = lines; }
+
+                }
+
+                return infDict;
+            }
+            catch (Exception e)
+            {
+                PrintYellow("[x] ERROR: " + e.Message);
+                return null;
+            }
+            
+        }
+
+
+        public static T ParseMyEnum<T>(string v)
+        {
+            return (T)Enum.Parse(typeof(T), v);
+        }
+
+        public static bool TestWebConnection(string url)
+        {
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.Timeout = 3000;
+            var cache = new CredentialCache();
+            cache.Add(new Uri(url), "NTLM", CredentialCache.DefaultNetworkCredentials);
+
+            HttpWebResponse response = null;
+            ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback( delegate { return true; });
+            try
+            {
+                response = (HttpWebResponse)req.GetResponse();
+                return response.StatusCode == HttpStatusCode.OK;
+            }
+            catch (WebException e) {
+                if (e.Status == WebExceptionStatus.ConnectFailure || e.Status == WebExceptionStatus.ConnectionClosed || e.Status == WebExceptionStatus.SendFailure ) { return false; }
+                var resp = e.Response as HttpWebResponse;
+                if (resp == null) { return false; }
+                if (resp.StatusCode == HttpStatusCode.Unauthorized) { return true; }
+                return false;
+            }
+        }
+
+
+        public static RegistryKey ReadRemoteReg(string hostname, RegistryHive regHive, string regLocation)
+        {
+            RegistryKey baseKey = null;
+            try
+            {
+                baseKey = RegistryKey.OpenRemoteBaseKey(regHive, hostname);
+            }
+            catch (Exception e)
+            {
+                PrintYellow("[x] Connecting remote reg hive error: " + e.Message);
+            }
+
+            RegistryKey key = null;
+            try
+            {
+                key = baseKey.OpenSubKey(regLocation);
+            }
+            catch (SecurityException e)
+            {
+                PrintYellow($"[x] Opening remote reg '{regLocation}' error: " + e.Message);
+            }
+            return key;
+        }
+
+        public static bool HasAuthenticationEKU (List<string> oids)
+        {
+            if (!oids.Any())
+            {
+                return false;
+            }
+            foreach(var oid in oids)
+            {
+                //          SmartcardLogon          ||    ClientAuthentication    || PKINITClientAuthentication
+                if (oid == "1.3.6.1.4.1.311.20.2.2" || oid == "1.3.6.1.5.5.7.3.2" || oid == "1.3.6.1.5.2.3.4")
+                {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+
+        public static bool HasDanagerousEKU(List<string> oids)
+        {
+            //Empty == AnyPurpose
+            if (!oids.Any())
+            {
+                return true;
+            }
+            foreach (var oid in oids)
+            {
+                //          AnyPurpose   ||    CertificateRequestAgent
+                if (oid == "2.5.29.37.0" || oid == "1.3.6.1.4.1.311.20.2.1")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
     }
-
-
 
 
     public struct Trust
@@ -355,7 +533,6 @@ namespace ADCollector
     }
 
 
-
     public struct ACLs
     {
         public string IdentityReference;
@@ -364,6 +541,47 @@ namespace ADCollector
         public string ObjectType;
         public string ObjectDN;
     }
+
+
+    public struct RestictedGroups
+    {
+        public string GPOName;
+        public string GPOID;
+        public string OUDN;
+        public Dictionary<string, Dictionary<string, string>> GroupMembership;
+    }
+
+
+    public struct ADCS
+    {
+        public string CAName;
+        public string whenCreated;
+        public string dnsHostName;
+        public string enrollServers;
+        public string owner;
+        public PkiCertificateAuthorityFlags flags;
+        public bool allowUserSuppliedSAN;
+        public List<X509Certificate2> caCertificates;
+        public List<ACLs> securityDescriptors;
+        public List<string> certTemplates;
+        public List<string> enrollmentEndpoints;
+    }
+
+    public struct CertificateTemplates
+    {
+        public string templateCN;
+        public string templateDisplayName;
+        public List<string> extendedKeyUsage;
+        public int raSigature;
+        public string owner;
+        public bool isPublished;
+        public string publishedBy;
+        public msPKICertificateNameFlag certNameFlag;
+        public msPKIEnrollmentFlag enrollFlag;
+        public List<ACLs> securityDescriptors;
+    }
+
+
 
 
 }

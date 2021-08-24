@@ -7,8 +7,11 @@ using System.Collections.Generic;
 using SearchScope = System.DirectoryServices.Protocols.SearchScope;
 using SearchOption = System.DirectoryServices.Protocols.SearchOption;
 using System.Collections.Concurrent;
-using System.Security.Principal;
-using CommandLine;
+using System.Linq;
+using System.Diagnostics;
+using static ADCollector.Printer;
+using static ADCollector.Helper;
+using SecurityMasks = System.DirectoryServices.Protocols.SecurityMasks;
 
 namespace ADCollector
 {
@@ -19,10 +22,16 @@ namespace ADCollector
         public static string rootDn;
         public static string forestDn;
         public static string schemaDn;
+        public static string configDn;
         public static string domainName;
         public static string forestName;
+        public static string accessDC;
+        public static string ouDn;
+        public static string identity;
         public static bool useLdaps;
         public static bool disableSigning;
+        public static bool aclScan;
+        public static bool adcs;
         public static string dc;
         public static int port;
         public static DirectoryEntry rootDSE;
@@ -36,15 +45,16 @@ namespace ADCollector
 
         public Collector(Options options)
         {
-            Printer.PrintBanner();
-
             domainName = options.Domain;
             port = options.Ldaps ? 636 : 389;
             username = options.Username;
             _password = options.Password;
             dc = options.DC;
             disableSigning = options.DisableSigning;
-
+            ouDn = options.OU == null ? null : options.OU.ToUpper();
+            aclScan = options.ACLScan;
+            identity = options.Identity;
+            adcs = options.ADCS;
 
             if (domainName != null && dc == null)
             {
@@ -65,7 +75,7 @@ namespace ADCollector
 
         public void Connect()
         {
-            rootDSE = GetSingleEntry("rootDSE");
+            rootDSE = GetSingleDirectoryEntry("rootDSE");
 
             //Test Connection
             try
@@ -74,8 +84,8 @@ namespace ADCollector
             }
             catch (Exception e)
             {
-                Helper.PrintYellow("[x] Cannot connect to LDAP://" + dc + ":" + port + "/rootDSE");
-                Helper.PrintYellow("[x] ERROR: " + e.Message);
+                PrintYellow("[x] Cannot connect to LDAP://" + dc + ":" + port + "/rootDSE");
+                PrintYellow("[x] ERROR: " + e.Message);
                 Environment.Exit(1);
             }
 
@@ -86,11 +96,23 @@ namespace ADCollector
             //Forest DN: DC=domain,DC=local
             forestDn = rootDSE.Properties["rootDomainNamingContext"].Value.ToString();
 
-            //CN = Schema,CN = Configuration,
+            //CN=Schema,CN=Configuration,
             schemaDn = rootDSE.Properties["schemaNamingContext"].Value.ToString();
+
+            //CN=Configuration,
+            configDn = rootDSE.Properties["configurationNamingContext"].Value.ToString();
 
             domainName = rootDn.Replace("DC=", "").Replace(",", ".");
             forestName = forestDn.Replace("DC=", "").Replace(",", ".");
+
+            if (ouDn != null) { 
+                if (!ouDn.Contains("DC=")) { 
+                    var findOU = GetSingleResultEntry(rootDn, ("(&(objectClass=organizationalUnit)(name=" + ouDn + "))"), SearchScope.Subtree, null, false); 
+                    if (findOU == null) { PrintYellow("[x] The specified OU does not exist\n"); Environment.Exit(1); }
+                    else { ouDn = findOU.DistinguishedName; }
+                }
+            }
+            else { ouDn = rootDn; }
         }
 
 
@@ -108,15 +130,17 @@ namespace ADCollector
                 Utilities.RunAs(domainName, username, _password, () =>
                 {
                     Connect();
-
-                    RunAllCommands();
+                    if (aclScan){  var dacl = Utilities.InvokeACLScan(identity); PrintACLs(dacl); }
+                    else if (adcs) { var adcs = Utilities.GetADCS(); PrintADCS(adcs); var certTemplateList = Utilities.GetInterestingCertTemplates(adcs); PrintCertTemplates(certTemplateList); }
+                    else { RunAllCommands(); }
                 });
             }
             else
             {
                 Connect();
-
-                RunAllCommands();
+                if (aclScan) { var dacl = Utilities.InvokeACLScan(identity); PrintACLs(dacl); }
+                else if (adcs) { var adcs = Utilities.GetADCS(); PrintADCS(adcs); var certTemplateList = Utilities.GetInterestingCertTemplates(adcs); PrintCertTemplates(certTemplateList); }
+                else { RunAllCommands(); }
             }
         }
 
@@ -125,181 +149,209 @@ namespace ADCollector
         public void RunAllCommands()
         {
             //LDAP Basic Info
-            Printer.PrintBasicInfo();
+            PrintBasicInfo();
+
+            //DC
+            var dcList = Utilities.GetDC();
+            PrintDC(dcList, "Domain Controllers");
+
+            //RODC
+            bool getRODC = true;
+            var rodcList = Utilities.GetDC(getRODC);
+            PrintDC(rodcList, "Read-Only Domain Controllers");
+
 
             //Kerberos Policies & System Access
-            Printer.PrintKerberosPolicy(domainName);
+            accessDC = dcList[0].Attributes["dnsHostName"][0].ToString();
+            PrintKerberosPolicy();
+
 
             var GPOs = Utilities.GetGPO();
 
             //Domain Attributes
-            Printer.PrintDomainAttr(rootDn, GPOs);
+            PrintDomainAttr(rootDn, GPOs);
 
-            //DC
-            Printer.PrintDC();
-
-            //RODC
-            Printer.PrintDC(true);
 
             //TDO
-            Printer.PrintTDO(rootDn);
+            PrintTDO(rootDn);
 
             //Trusts
-            Printer.PrintTrust(domainName);
+            PrintTrust(domainName);
 
-            Printer.PrintNestedGroupMem(false, null);
 
-            Printer.PrintNestedGroupMem(true, null);
+            //ADCS*
+            var adcs = Utilities.GetADCS();
+            PrintADCS(adcs);
+
+            var certTemplateList = Utilities.GetInterestingCertTemplates(adcs);
+            PrintCertTemplates(certTemplateList);
+ 
+            //Nested Group Membership
+            var userGroupList = Utilities.GetNestedGroupMem(out string uguser, false);
+            PrintNestedGroupMem(userGroupList, uguser, null);
+            var machineGroupList = Utilities.GetNestedGroupMem(out string mguser, true);
+            PrintNestedGroupMem(machineGroupList, mguser, null);
 
 
             //EffectiveGPOsOnUser
             string userDn = Utilities.GetDN(false, out string uname, null);
-
-            var userOUs = Utilities.GetMyOUs(uname, userDn, false);
-
-            var userAppliedGPOs = Utilities.GetAppliedGPOs(userOUs, GPOs);
-
-            Printer.PrintAppliedGPOs(userDn, userAppliedGPOs, false);
-
+            if (userDn != null)
+            {
+                var userOUs = Utilities.GetMyOUs(uname, userDn, false);
+                var userAppliedGPOs = Utilities.GetAppliedGPOs(userGroupList, userOUs, GPOs);
+                PrintAppliedGPOs(userDn, userAppliedGPOs, false);
+            }
 
             //EffectiveGPOsOnComputer
             string computerDn = Utilities.GetDN(true, out string cname, null);
+            if (computerDn != null)
+            {
+                var computerOUs = Utilities.GetMyOUs(cname, computerDn, true);
+                var computerAppliedGPOs = Utilities.GetAppliedGPOs(machineGroupList, computerOUs, GPOs);
+                PrintAppliedGPOs(computerDn, computerAppliedGPOs, true);
+            }
+            
 
-            var computerOUs = Utilities.GetMyOUs(cname, computerDn, true);
-
-            var computerAppliedGPOs = Utilities.GetAppliedGPOs(computerOUs, GPOs);
-
-            Printer.PrintAppliedGPOs(computerDn, computerAppliedGPOs, true);
-
-
+            var samAccount = new string[] { "sAMAccountName" };
             //Unconstrainde Delegation
             //TRUSTED_FOR_DELEGATION
             //By default, DCs are configured to allow Kerberos Unconstrained Delegation.
             //So excluding DCs here
-            var udDict = Utilities.GetGeneral(rootDn, @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))");
-            Printer.PrintDirectoryAttrDict(udDict, "Unconstrained Delegation Accounts");
+            var udDict = Utilities.GetGeneral(ouDn, @"(&(userAccountControl:1.2.840.113556.1.4.803:=524288)(!primaryGroupID=516))", samAccount);
+            PrintDirectoryAttrsDict(udDict, "Unconstrained Delegation Accounts");
 
 
             //Constrainde Delegation
             //TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
             //By default, RODCs are configured to allow Kerberos Constrained Delegation with Protocol Transition.
             //So excluding RODCs here
-            var cdDict = Utilities.GetGeneral(rootDn, @"(&(userAccountControl:1.2.840.113556.1.4.803:=16777216)(!primaryGroupID=521))");
-            Printer.PrintDirectoryAttrDict(cdDict, "Constrained Delegation [with S4U2Self enabled] Accounts (Any Authentication Protocol)");
+            var cdDict = Utilities.GetGeneral(ouDn, @"(&(userAccountControl:1.2.840.113556.1.4.803:=16777216)(!primaryGroupID=521))", samAccount);
+            PrintDirectoryAttrsDict(cdDict, "Constrained Delegation [with S4U2Self enabled] Accounts (Any Authentication Protocol)");
 
 
             ////Constrainde Delegation with Services
-            var cdSrvDict = Utilities.GetGeneral(rootDn, @"(msDS-AllowedToDelegateTo=*)", "msDS-AllowedToDelegateTo");
-            Printer.PrintDirectoryAttrDict(cdSrvDict, "Constrained Delegation Accounts with associated services");
-
+            var cdSrvDict = Utilities.GetGeneral(ouDn, @"(msDS-AllowedToDelegateTo=*)", new string[] { "msDS-AllowedToDelegateTo" });
+            PrintDirectoryAttrsDict(cdSrvDict, "Constrained Delegation Accounts with associated services");
 
 
             //Resources-based Constrained Delegation
-            var rbcdSrvDict = Utilities.GetGeneral(rootDn, @"(msDS-AllowedToActOnBehalfOfOtherIdentity=*)", "msDS-AllowedToActOnBehalfOfOtherIdentity");
-            Printer.PrintDirectoryAttrDict(rbcdSrvDict, "Resources-based Constrained Delegation Accounts");
+            var rbcdSrvDict = Utilities.GetGeneral(ouDn, @"(msDS-AllowedToActOnBehalfOfOtherIdentity=*)", new string[] { "msDS-AllowedToActOnBehalfOfOtherIdentity" });
+            PrintDirectoryAttrsDict(rbcdSrvDict, "Resources-based Constrained Delegation Accounts");
 
 
             //SPN: MSSQL
-            var mssqlSpn = Utilities.GetGeneral(rootDn, @"(servicePrincipalName=mssql*)", "servicePrincipalName");
-            Printer.PrintDirectoryAttrDict(mssqlSpn, "Accounts with MSSQL Service SPNs");
+            var mssqlSpn = Utilities.GetGeneral(ouDn, @"(servicePrincipalName=mssql*)", new string[] { "servicePrincipalName" });
+            PrintDirectoryAttrsDict(mssqlSpn, "Accounts with MSSQL Service SPNs");
 
+            //SPN: HTTP
+            var httpSpn = Utilities.GetGeneral(ouDn, @"(servicePrincipalName=http*)", new string[] { "servicePrincipalName" });
+            PrintDirectoryAttrsDict(httpSpn, "Accounts with HTTP Service SPNs");
 
             //SPN: EXCHANGE
-            var exchangeSpn = Utilities.GetGeneral(rootDn, @"(servicePrincipalName=exchange*)", "servicePrincipalName");
-            Printer.PrintDirectoryAttrDict(exchangeSpn, "Accounts with Exchange Service SPNs");
-
-
-            ////SPN: RDP
-            //var rdpSpn = Utilities.GetGeneral(rootDn, @"(servicePrincipalName=term*)", "servicePrincipalName");
-            //Printer.PrintDirectoryAttrDict(rdpSpn, "Accounts with RDP Service SPNs");
-
-
-            ////SPN: PSRemoting
-            //var psremotingSpn = Utilities.GetGeneral(rootDn, @"(servicePrincipalName=wsman*)", "servicePrincipalName");
-            //Printer.PrintDirectoryAttrDict(psremotingSpn, "Accounts with PS Remoting Service SPNs");
+            var exchangeSpn = Utilities.GetGeneral(ouDn, @"(servicePrincipalName=exchange*)", new string[] { "servicePrincipalName" });
+            PrintDirectoryAttrsDict(exchangeSpn, "Accounts with Exchange Service SPNs");
 
 
             //Privileged Accounts
-            var privAccounts = Utilities.GetGeneral(rootDn, "(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin," + rootDn + "))", "MemberOf");
-            Printer.PrintDirectoryAttrDict(privAccounts, "Privileged Accounts");
+            var privAccounts = Utilities.GetGeneral(ouDn, "(&(objectClass=user)(memberof:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin," + rootDn + "))", new string[] { "MemberOf" });
+            PrintDirectoryAttrsDict(privAccounts, "Privileged Accounts");
 
 
             //Sensitive & Not Delegated
-            var sensitiveAccounts = Utilities.GetGeneral(rootDn, @"(userAccountControl:1.2.840.113556.1.4.803:=1048576)");
-            Printer.PrintDirectoryAttrDict(sensitiveAccounts, "Sensitive & Not Delegated Accounts");
+            var sensitiveAccounts = Utilities.GetGeneral(ouDn, @"(userAccountControl:1.2.840.113556.1.4.803:=1048576)", samAccount);
+            PrintDirectoryAttrsDict(sensitiveAccounts, "Sensitive & Not Delegated Accounts");
 
+
+            //Protected Users
+            var protectedAccounts = Utilities.GetSingleEntryAttr("CN=Protected Users,CN=Users," + rootDn,  "member");
+            PrintSingleEntryAttribute(protectedAccounts, "Protected Users");
 
             //AdminSDHolder
-            var sdholderAccounts = Utilities.GetGeneral(rootDn, @"(&(adminCount=1)(objectCategory=person))");
-            Printer.PrintDirectoryAttrDict(sdholderAccounts, "AdminSDHolder Protected Accounts");
+            var sdholderAccounts = Utilities.GetGeneral(ouDn, @"(&(adminCount=1)(objectCategory=person))", samAccount);
+            PrintDirectoryAttrsDict(sdholderAccounts, "AdminSDHolder Protected Accounts");
 
 
             //Password Does Not Expire
-            var passnotexpireAccounts = Utilities.GetGeneral(rootDn, @"(userAccountControl:1.2.840.113556.1.4.803:=65536)");
-            Printer.PrintDirectoryAttrDict(passnotexpireAccounts, "Password Does Not Expire Accounts");
+            var passnotexpireAccounts = Utilities.GetGeneral(ouDn, @"(userAccountControl:1.2.840.113556.1.4.803:=65536)", samAccount);
+            PrintDirectoryAttrsDict(passnotexpireAccounts, "Password Does Not Expire Accounts");
 
 
             //User Accounts With SPN
-            var spnAccounts = Utilities.GetGeneral(rootDn, @"(&(sAMAccountType=805306368)(servicePrincipalName=*))", "servicePrincipalName");
-            Printer.PrintDirectoryAttrDict(spnAccounts, "User Accounts With SPN Set");
+            var spnAccounts = Utilities.GetGeneral(ouDn, @"(&(sAMAccountType=805306368)(servicePrincipalName=*))", new string[] { "servicePrincipalName" });
+            PrintDirectoryAttrsDict(spnAccounts, "User Accounts With SPN Set");
 
 
             //DontRequirePreauth
-            var nopreauthAccounts = Utilities.GetGeneral(rootDn, @"(userAccountControl:1.2.840.113556.1.4.803:=4194304)");
-            Printer.PrintDirectoryAttrDict(nopreauthAccounts, "DontRequirePreauth Accounts");
+            var nopreauthAccounts = Utilities.GetGeneral(ouDn, @"(userAccountControl:1.2.840.113556.1.4.803:=4194304)", samAccount);
+            PrintDirectoryAttrsDict(nopreauthAccounts, "DontRequirePreauth Accounts");
 
 
             //Interesting Description
             string term = "pass";
-            var interestingDescrip = Utilities.GetGeneral(rootDn, @"(&(sAMAccountType=805306368)(description=*" + term + "*))", "description");
-            Printer.PrintDirectoryAttrDict(interestingDescrip, "Interesting Descriptions (default: pass) on User Objects");
+            var interestingDescrip = Utilities.GetGeneral(ouDn, @"(&(sAMAccountType=805306368)(description=*" + term + "*))", new string[] { "description" });
+            PrintDirectoryAttrsDict(interestingDescrip, "Interesting Descriptions (default: pass) on User Objects");
 
 
             //GPP Password in SYSVOL
             var gppXml = Utilities.GetGPPXML();
             var gppData = Utilities.GetGPPPass(gppXml);
-            Printer.PrintGPPPass(gppData);
+            PrintGPPPass(gppData);
 
 
             //GPP Password in Cache
             var gppCache = Utilities.GetGPPXML();
             var gppCacheData = Utilities.GetGPPPass(gppCache);
-            Printer.PrintGPPPass(gppCacheData, false);
+            PrintGPPPass(gppCacheData, false);
 
 
             //Interesting ACLs on the domain object
             var dcSyncList = new Dictionary<string, int>();
             var domDnList = new List<string> { rootDn };
-            var domACLs = Utilities.GetInterestingACLs(domDnList,  out dcSyncList);
-            Printer.PrintACLs(domACLs, "Interesting ACLs on the domain object");
-
+            var domACLs = Utilities.GetInterestingACLs(domDnList, out dcSyncList);
+            PrintACLs(domACLs, "Interesting ACLs on the domain object");
 
             //DC Sync Accounts
-            Printer.PrintDCSync(dcSyncList);
+            PrintDCSync(dcSyncList);
 
 
             //"CN=" + gPOID + ",CN=Policies,CN=System," + rootDn
             var gpoDnList = new List<string>();
-            foreach(var gpo in GPOs)
+            foreach (var gpo in GPOs)
             {
                 gpoDnList.Add("CN=" + gpo.Key + ",CN=Policies,CN=System," + rootDn);
             }
             var gpoACLs = Utilities.GetInterestingACLs(gpoDnList, out _);
-            Printer.PrintACLs(gpoACLs, "Interesting ACLs on Group Policy Objects");
+            PrintACLs(gpoACLs, "Interesting ACLs on Group Policy Objects");
 
 
             //Confidential Attributes
             var confidentialAttrs = Utilities.GetSingleAttr(schemaDn, @"(searchFlags:1.2.840.113556.1.4.803:=128)", "name");
-            Printer.PrintSingleAttribute(confidentialAttrs, "Confidential Attributes");
- 
+            PrintSingleAttribute(confidentialAttrs, "Confidential Attributes");
+            
+            //Machine Owners
+            var hasCreator = Utilities.GetGeneral(ouDn, @"(ms-ds-CreatorSID=*)", new string[] { "ms-ds-CreatorSID" });
 
+            PrintDirectoryAttrsDict(hasCreator, "Machine Owners");
+           
             //LAPS Password View Access
-            var ouList = Utilities.GetSingleAttr(rootDn, "(objectClass=organizationalUnit)", "distinguishedName");
+            var ouList = Utilities.GetSingleAttr(ouDn, "(objectClass=organizationalUnit)", "distinguishedName");
             var ouACLs = Utilities.GetLAPSViewACLs(ouList);
-            Printer.PrintACLs(ouACLs, "LAPS Password View Access");
+            PrintACLs(ouACLs, "LAPS Password View Access");
+            Console.WriteLine();
+            var hasLaps = Utilities.GetGeneral(ouDn, @"(ms-Mcs-AdmPwdExpirationTime=*)", new string[] { "sAMAccountName", "ms-Mcs-AdmPwd" });
+            PrintDirectoryAttrsDict(hasLaps, null);
 
+            //Restricted Groups
+            var allOUs = Utilities.GetAllOUs(ouDn);
 
+            var ouGPOs = Utilities.GetAppliedGPOs(userGroupList, allOUs, GPOs);
 
+            var rGroups = Utilities.GetRestrictedGroup(ouGPOs,GPOs);
+
+            PrintRestrictedGroups(rGroups);
+            
+
+            Console.WriteLine(); 
         }
 
 
@@ -312,7 +364,7 @@ namespace ADCollector
 
             if (cmdChoice == 0)
             {
-                Printer.PrintMenu();
+                PrintMenu();
                 
                 while (true)
                 {
@@ -338,47 +390,48 @@ namespace ADCollector
                 case 0:
                     Environment.Exit(0);
                     break;
-                case 1:
-                    Printer.PrintDNS();
+                case 1://Collect LDAP DNS Records
+                    PrintDNS();
                     break;
-                case 2:
+                case 2://Find Single LDAP DNS Record
                     if (parameter == null) {
                         Console.Write("Enter the Host Name to Search: ");
                     }
                     string dnshostname = parameter ??  Console.ReadLine();
-                    Helper.PrintGreen("\n[*] Search in the Domain:");
+                    PrintGreen("\n[*] Search in the Domain:");
                     Console.WriteLine("    {0}", Utilities.GetSingleDNSRecord(dnshostname, false));
                     
-                    Helper.PrintGreen("\n[*] Search in the Forest:");
+                    PrintGreen("\n[*] Search in the Forest:");
                     Console.WriteLine("    {0}", Utilities.GetSingleDNSRecord(dnshostname, true));
                     break;
-                case 3:
+                case 3://SPN Scan
                     if (parameter == null)
                     {
                         Console.Write("Enter the Service Name to Search (e.g. mssql* / wsman*): ");
                     }
                     string srvTerm = parameter ?? Console.ReadLine();
-                    var rdpSpn = Utilities.GetGeneral(rootDn, @"(servicePrincipalName=" + srvTerm + ")", "servicePrincipalName");
-                    Printer.PrintDirectoryAttrDict(rdpSpn, "Accounts with Service SPNs");
+                    var rdpSpn = Utilities.GetGeneral(ouDn, @"(servicePrincipalName=" + srvTerm + ")", new string[] { "servicePrincipalName" });
+                    PrintDirectoryAttrsDict(rdpSpn, "Accounts with Service SPNs");
                     break;
-                case 4:
+                case 4://Find Nested Group Membership
                     if (parameter == null)
                     {
                         Console.Write("Enter the Name to Search (e.g. Harry / DEVMachine$ ): ");
                     }
                     string nestedUser = parameter ?? Console.ReadLine();
-                    Printer.PrintNestedGroupMem(false, nestedUser);
+                    var userGroupList = Utilities.GetNestedGroupMem(out string uguser, false, nestedUser);
+                    PrintNestedGroupMem(userGroupList, uguser, nestedUser);
                     break;
-                case 5:
+                case 5://Search Interesting Term on User Description Fields
                     if (parameter == null)
                     {
                         Console.Write("Enter the Term to Search : ");
                     }
                     string searchTerm = parameter ?? Console.ReadLine();
-                    var interestingDescrip = Utilities.GetGeneral(rootDn, @"(&(sAMAccountType=805306368)(description=*" + searchTerm + "*))", "description");
-                    Printer.PrintDirectoryAttrDict(interestingDescrip, "Interesting Descriptions on User Objects");
+                    var interestingDescrip = Utilities.GetGeneral(ouDn, @"(&(sAMAccountType=805306368)(description=*" + searchTerm + "*))", new string[] { "description" });
+                    PrintDirectoryAttrsDict(interestingDescrip, "Interesting Descriptions on User Objects");
                     break;
-                case 6:
+                case 6://Enumerate Interesting ACLs on an Object
                     if (parameter == null)
                     {
                         Console.Write("Enter the Distinguished Name to Search (e.g. DC=Domain,DC=Local): ");
@@ -386,31 +439,31 @@ namespace ADCollector
                     string objDn = parameter ?? Console.ReadLine();
                     var objDnList = new List<string> { objDn };
                     var objACLs = Utilities.GetInterestingACLs(objDnList, out _);
-                    Printer.PrintACLs(objACLs, "Interesting ACLs on the object");
+                    PrintACLs(objACLs, "Interesting ACLs on the object");
                     break;
-                case 7:
+                case 7://NetSessionEnum
                     if (parameter == null)
                     {
                         Console.Write("Enter the Host Name to Enumerate Session : ");
                     }
                     string sessHostname = parameter ?? Console.ReadLine();
-                    Printer.PrintNetSession(sessHostname);
+                    PrintNetSession(sessHostname);
                     break;
-                case 8:
+                case 8://NetLocalGroupGetMembers
                     if (parameter == null)
                     {
                         Console.Write("Enter the Host Name to Enumerate Users : ");
                     }
                     string userHostname = parameter ?? Console.ReadLine();
-                    Printer.PrintNetWkstaUserEnum(userHostname);
+                    PrintNetWkstaUserEnum(userHostname);
                     break;
-                case 9:
+                case 9://NetWkstaUserEnum
                     if (parameter == null)
                     {
                         Console.Write("Enter the Host Name to Enumerate Local Group : ");
                     }
                     string groupHostname = parameter ?? Console.ReadLine();
-                    Printer.PrintNetLocalGroupGetMembers(groupHostname);
+                    PrintNetLocalGroupGetMembers(groupHostname);
                     break;
                 default:
                     InteraciveMenu();
@@ -419,9 +472,8 @@ namespace ADCollector
         }
 
 
-
-
-        internal static SearchResultEntry GetSingleResponse(string dn, string filter, SearchScope scope, string[] attrsToReturn, bool useGC)
+        //FindOne
+        internal static SearchResultEntry GetSingleResultEntry(string dn, string filter, SearchScope scope, string[] attrsToReturn, bool useGC)
         {
             var connection = useGC ? ConnectGCLDAP() : ConnectLDAP();
 
@@ -434,10 +486,13 @@ namespace ADCollector
             // from other partitions is not returned
 
             var searchControl = new SearchOptionsControl(SearchOption.DomainScope);
-            //Unhandled Exception: System.ComponentModel.InvalidEnumArgumentException: 
-            //The value of argument 'value' (0) is invalid for Enum type 'SearchOption'.
-            //var searchControl = new SearchOptionsControl();
 
+            //To retrieve nTSecurityDescriptor attribute https://github.com/BloodHoundAD/SharpHound3/blob/master/SharpHound3/DirectorySearch.cs#L157
+            var securityDescriptorFlagControl = new SecurityDescriptorFlagControl
+            {
+                SecurityMasks = SecurityMasks.Dacl | SecurityMasks.Owner
+            };
+            request.Controls.Add(securityDescriptorFlagControl);
             request.Controls.Add(pageReqControl);
             request.Controls.Add(searchControl);
 
@@ -451,7 +506,8 @@ namespace ADCollector
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Debug.WriteLine("[x] Collecting SingleResultEntry Failed (Filter: [{0}])...",filter);
+                PrintYellow("[x] ERROR: " + e.Message);
                 return null;
             }
             finally
@@ -464,8 +520,8 @@ namespace ADCollector
         }
 
 
-
-        internal static IEnumerable<SearchResultEntry> GetResponses(string dn, string filter, SearchScope scope, string[] attrsToReturn, bool useGC = false)
+        //FindAll
+        internal static IEnumerable<SearchResultEntry> GetResultEntries(string dn, string filter, SearchScope scope, string[] attrsToReturn, bool useGC = false)
         {
             var connection = useGC ? ConnectGCLDAP() : ConnectLDAP();
 
@@ -478,10 +534,13 @@ namespace ADCollector
             // from other partitions is not returned
 
             var searchControl = new SearchOptionsControl(SearchOption.DomainScope);
-            //Unhandled Exception: System.ComponentModel.InvalidEnumArgumentException: 
-            //The value of argument 'value' (0) is invalid for Enum type 'SearchOption'.
-            //var searchControl = new SearchOptionsControl();
 
+            //To retrieve nTSecurityDescriptor attribute https://github.com/BloodHoundAD/SharpHound3/blob/master/SharpHound3/DirectorySearch.cs#L157
+            var securityDescriptorFlagControl = new SecurityDescriptorFlagControl
+            {
+                SecurityMasks = SecurityMasks.Dacl | SecurityMasks.Owner
+            };
+            request.Controls.Add(securityDescriptorFlagControl);
             request.Controls.Add(pageReqControl);
             request.Controls.Add(searchControl);
 
@@ -496,7 +555,7 @@ namespace ADCollector
                 catch (Exception e)
                 {
                     //Console.WriteLine(e.StackTrace);
-                    Console.WriteLine("[X] ERROR: {0}",e.Message);
+                    PrintYellow($"[X] ERROR: {e.Message} (Cannot find the provided DN/OU)");
                     yield break;
                 }
 
@@ -527,18 +586,18 @@ namespace ADCollector
 
 
 
-        public static DirectoryEntry GetSingleEntry(string dn)
+        public static DirectoryEntry GetSingleDirectoryEntry(string dn)
         {
             try
             {
                 //var entry = new DirectoryEntry("LDAP://" + dc + ":" + port + "/" + dn, username, _password);//, AuthenticationTypes.Secure | AuthenticationTypes.SecureSocketsLayer);
                 var entry = new DirectoryEntry("LDAP://" + dc + "/" + dn, username, _password);
                 _entryPool.Add(entry);
+
                 return entry;
             }
-            catch (Exception e) { Helper.PrintYellow("[x] ERROR: " + e.Message); return null; }
+            catch (Exception e) { PrintYellow("[x] Error getting a single DirectoryEntry: " + e.Message); return null; }
         }
-
 
 
         private static LdapConnection ConnectLDAP()

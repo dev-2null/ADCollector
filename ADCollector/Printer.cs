@@ -73,13 +73,13 @@ namespace ADCollector
 
 
 
-        public static void PrintKerberosPolicy(string domName)
+        public static void PrintKerberosPolicy()
         {
             PrintGreen("\n[-] Kerberos Policy & System Access:\n");
 
             try
             {
-                var policies = Utilities.GetDomainPolicy(domName);
+                var policies = Utilities.GetDomainPolicy();
 
                 foreach (var policy in policies)
                 {
@@ -96,7 +96,7 @@ namespace ADCollector
 
             try
             {
-                using (var entry = GetSingleEntry(rootDN))
+                using (var entry = GetSingleDirectoryEntry(rootDN))
                 {
                     var sid = new SecurityIdentifier((byte[])entry.Properties["objectSid"][0], 0);
 
@@ -125,9 +125,19 @@ namespace ADCollector
 
                     foreach (Match match in matches)
                     {
-                        Console.WriteLine("     - {0}", GPOs[match.Value]);
-                        Console.WriteLine("       {0}", match.Value);
-                        Console.WriteLine();
+                        if (GPOs.ContainsKey(match.Value))
+                        {
+                            Console.WriteLine("     - {0}", GPOs[match.Value]);
+                            Console.WriteLine("       {0}", match.Value);
+                            Console.WriteLine();
+                        }
+                        else
+                        {
+                            Console.WriteLine("     - [X: Probably No Permission to View]");
+                            Console.WriteLine("       {0}", match.Value);
+                            Console.WriteLine();
+                        }
+                        
                     }
                 }
             }
@@ -137,14 +147,10 @@ namespace ADCollector
 
 
 
-        public static void PrintNestedGroupMem(bool onComputer = false, string customUser = null)
+        public static void PrintNestedGroupMem(List<string> groupList, string guser, string customUser = null)
         {
-            if (customUser != null)
-            {
-                if (customUser.Contains("$")) { onComputer = true; }
-            }
-
-            var groupList = Utilities.GetNestedGroupMem(out string guser, onComputer, customUser);
+ 
+            if (guser == null) { return; }
 
             PrintGreen("\n[-] Nested Group Membership for " + guser + "\n");
 
@@ -190,18 +196,9 @@ namespace ADCollector
 
 
 
-        public static void PrintDC(bool rodc = false)
+        public static void PrintDC(List<SearchResultEntry> dcList, string banner)
         {
-            if (!rodc)
-            {
-                PrintGreen("\n[-] Domain Controllers:\n");
-            }
-            else
-            {
-                PrintGreen("\n[-] Read-Only Domain Controllers:\n");
-            }
-
-            var dcList = Utilities.GetDC(rodc);
+            PrintGreen(string.Format("\n[-] {0}:\n", banner));
 
             if (dcList == null) { return; }
 
@@ -393,7 +390,6 @@ namespace ADCollector
                 }
                 Console.WriteLine();
             }
-            Console.WriteLine();
         }
 
 
@@ -408,17 +404,23 @@ namespace ADCollector
             {
                 Console.WriteLine("    * {0}", attr);
             }
-
         }
 
 
-
-
-
-
-        public static void PrintDirectoryAttrDict(Dictionary<string,DirectoryAttribute> myDict, string banner)
+        public static void PrintSingleEntryAttribute(PropertyValueCollection entryProperty, string banner)
         {
             PrintGreen(string.Format("\n[-] {0}:\n", banner));
+
+            foreach (string attr in entryProperty)
+            {
+                Console.WriteLine("    * {0}", attr);
+            }
+        }
+
+
+        public static void PrintDirectoryAttrsDict(Dictionary<string, Dictionary<string, DirectoryAttribute>> myDict, string banner)
+        {
+            if (banner != null) { PrintGreen(string.Format("\n[-] {0}:\n", banner)); }
 
             if (myDict == null) { return; }
 
@@ -426,47 +428,20 @@ namespace ADCollector
             {
                 Console.WriteLine("    * {0}", obj.Key);
 
-
-                if (obj.Value[0] is string)
+                foreach(var attr in obj.Value)
                 {
-                    for (int i = 0; i < obj.Value.Count; i++)
+                    foreach (var secDescription in Utilities.ResolveSecurityDescriptors(attr.Value))
                     {
-                        Console.WriteLine("      - {0}", obj.Value[i]);
+                        Console.WriteLine("      - {0, -20}  {1}", attr.Key+":", secDescription);
                     }
                 }
-                else if (obj.Value[0] is byte[])
-                {
-                    //Resolve Security Descriptor
-                    //From The .Net Developer Guide to Directory Services Programming Listing 8.2. Listing the DACL
 
-                    for (int i = 0; i < obj.Value.Count; i++)
-                    {
-                        ActiveDirectorySecurity ads = new ActiveDirectorySecurity();
-
-                        ads.SetSecurityDescriptorBinaryForm((byte[])obj.Value[i]);
-
-                        var rules = ads.GetAccessRules(true, true, typeof(NTAccount));
-
-                        foreach (ActiveDirectoryAccessRule rule in rules)
-                        {
-                            string name = rule.IdentityReference.ToString();
-
-                            if (name.ToUpper().Contains("S-1-5")) { name = ConvertSIDToName(name); }
-
-                            Console.WriteLine("      - {0} ([ControlType: {1}] Rights: {2})",
-                                name,
-                                rule.AccessControlType.ToString(),
-                                rule.ActiveDirectoryRights.ToString());
-                        }
-                    }
-                }
                 Console.WriteLine();
             }
 
         }
 
 
-       
 
         public static void PrintGPPPass(List<GPP> myGPP, bool inSYSVOL = true)
         {
@@ -474,7 +449,7 @@ namespace ADCollector
 
             PrintGreen(string.Format("\n[-] Group Policy Preference Passwords in {0}:\n", banner));
 
-            if (myGPP == null) { return; }
+            if (myGPP == null|| myGPP.Count == 0) { return; }
 
             foreach (var gpp in myGPP)
             {
@@ -484,7 +459,7 @@ namespace ADCollector
                 {
                     if (p.Name != "Path")
                     {
-                        Console.WriteLine("        {0, -22}, {1}", p.Name, p.GetValue(gpp));
+                        Console.WriteLine("        {0, -22}  {1}", p.Name, p.GetValue(gpp));
                     }
                         
                 }
@@ -501,23 +476,42 @@ namespace ADCollector
 
             PrintGreen(string.Format("\n[-] {0}:\n", banner));
 
-            if (myACL == null) { return; }
+            if (myACL == null || myACL.Count == 0) { return; }
+            var targetEntry = GetSingleDirectoryEntry(myACL[0].ObjectDN);
+            var targetName = targetEntry.Properties.Contains("displayName") ? targetEntry.Properties["displayName"][0].ToString() : targetEntry.Properties["name"][0].ToString();
 
+            
+            Console.WriteLine("    * {0}", targetName);
+            Console.WriteLine("      {0}", myACL[0].ObjectDN);
+            Console.WriteLine("      Interesting DACL:");
             foreach (var acl in myACL)
             {
-                Console.WriteLine("    * {0}", acl.ObjectDN);
-
-                foreach (var p in typeof(ACLs).GetFields())
-                {
-                    if (p.Name != "ObjectDN")
-                    {
-                        Console.WriteLine("      {0, -22}  {1}", p.Name, p.GetValue(acl));
-                    }
-                }
-                Console.WriteLine();
+                Console.WriteLine("      {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
             }
         }
 
+
+        public static void PrintACLs(List<List<ACLs>> myACL)
+        {
+
+            PrintGreen(string.Format("\n[-] ACL Scan Results:\n"));
+
+            if (myACL == null || myACL.Count == 0) { return; }
+            foreach(var aclList in myACL)
+            {
+                var targetEntry = GetSingleDirectoryEntry(aclList[0].ObjectDN);
+                var targetName = targetEntry.Properties.Contains("displayName") ? targetEntry.Properties["displayName"][0].ToString() : targetEntry.Properties["name"][0].ToString();
+                Console.WriteLine("    * {0}", targetName);
+                Console.WriteLine("      {0}", aclList[0].ObjectDN);
+                Console.WriteLine("      Interesting DACL:");
+                foreach (var acl in aclList)
+                {
+                    Console.WriteLine("      {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                }
+                Console.WriteLine();
+            }
+
+        }
 
 
         public static void PrintDCSync(Dictionary<string, int> dcSyncList)
@@ -532,10 +526,118 @@ namespace ADCollector
                     Console.WriteLine("    * {0}", user.Key);
                 }
             }
-            Console.WriteLine();
         }
 
 
+        public static void PrintRestrictedGroups(List<RestictedGroups> RestrictedGroups)
+        {
+            PrintGreen(string.Format("\n[-] Restricted Groups:\n"));
+            if (RestrictedGroups == null || RestrictedGroups.Count == 0) { return; }
+            foreach (var rGroup in RestrictedGroups)
+            {
+                Console.WriteLine("\n    * GPO:           {0} {1}", rGroup.GPOName, rGroup.GPOID);
+                Console.WriteLine("      OU:            {0}", rGroup.OUDN);
+                foreach (var gMembership in rGroup.GroupMembership)
+                {
+                    Console.WriteLine("      Group:         {0}", gMembership.Key.Split('.')[0]);
+                    foreach (var membership in gMembership.Value)
+                    {
+                        Console.WriteLine("      {0}:       {1}", membership.Key, membership.Value);
+
+                    }
+                    
+                }
+                
+            }
+
+        }
+
+
+        public static void PrintADCS(List<ADCS> certsrvs)
+        {
+            PrintGreen(string.Format("\n[-] Certificate Services:\n"));
+            if (certsrvs == null || certsrvs.Count== 0) { return; }
+            foreach(var certsrv in certsrvs)
+            {
+                Console.WriteLine("    * CA Name:                 {0}", certsrv.CAName);
+                Console.WriteLine("      DNSHostName:             {0}", certsrv.dnsHostName);
+                Console.WriteLine("      WhenCreated:             {0}", certsrv.whenCreated);
+                Console.WriteLine("      Flags:                   {0}", certsrv.flags);
+                Console.WriteLine("      Enrollment Servers:      {0}", certsrv.enrollServers);
+                Console.WriteLine("      Certificate Templates:   {0}", string.Join(",",certsrv.certTemplates));
+                Console.WriteLine("      Enrollment Endpoints:    {0}", string.Join(",", certsrv.enrollmentEndpoints));
+                Console.WriteLine("      Supplied SAN Enabled:    {0}", certsrv.allowUserSuppliedSAN.ToString().ToUpper());
+                Console.WriteLine("      Owner:                   {0}", certsrv.owner);
+                Console.WriteLine("      DACL:");
+                if (certsrv.securityDescriptors != null && certsrv.securityDescriptors.Count != 0)
+                {
+                    foreach (var acl in certsrv.securityDescriptors)
+                    {
+                        Console.WriteLine("                               {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                    }
+                }
+ 
+                foreach(var cert in certsrv.caCertificates)
+                {
+                    Console.WriteLine("      Cert SubjectName:        {0}", cert.SubjectName.Name);
+                    Console.WriteLine("      Cert Thumbprint:         {0}", cert.Thumbprint);
+                    Console.WriteLine("      Cert Start Date:         {0}", cert.NotBefore);
+                    Console.WriteLine("      Cert End Date:           {0}", cert.NotAfter);
+                }
+                Console.WriteLine();
+            }
+        }
+
+
+
+
+        public static void PrintCertTemplates(List<CertificateTemplates> certTemplates)
+        {
+            PrintGreen(string.Format("\n[-] Interesting Certificate Templates:\n"));
+            if (certTemplates == null || certTemplates.Count == 0) { return; }
+
+            
+            foreach (var template in certTemplates)
+            {
+                if (template.isPublished)
+                {
+                    Console.WriteLine("    * CertTemplate:            {0}", template.templateDisplayName);
+                    Console.WriteLine("      CA Name:                 {0}", template.publishedBy);
+                    Console.WriteLine("      CN:                      {0}", template.templateCN);
+                    Console.WriteLine("      Enrollment Flag:         {0}", template.enrollFlag);
+                    Console.WriteLine("      Cert Name Flag:          {0}", template.certNameFlag);
+                    Console.WriteLine("      Extended Key Usage:      {0}", string.Join(",", template.extendedKeyUsage));
+                    Console.WriteLine("      RA Signatures:           {0}", template.raSigature);
+                    Console.WriteLine("      Owner:                   {0}", template.owner);
+                    Console.WriteLine("      DACL:");
+                    if (template.securityDescriptors != null && template.securityDescriptors.Count != 0)
+                    {
+                        foreach (var acl in template.securityDescriptors)
+                        {
+                            Console.WriteLine("                               {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                        }
+                    }
+                    Console.WriteLine();
+                } 
+            }
+            foreach(var template in certTemplates)
+            {
+                if (!template.isPublished)
+                {
+                    Console.WriteLine("    * The Certificate Template [{0}] is vulnerable but it is not published by any CA ", template.templateDisplayName);
+                    Console.WriteLine("      Interesting DACL:");
+                    if (template.securityDescriptors != null && template.securityDescriptors.Count != 0)
+                    {
+                        foreach (var acl in template.securityDescriptors)
+                        {
+                            Console.WriteLine("                               {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                        }
+                    }
+                    Console.WriteLine();
+                }
+                
+            }
+        }
 
 
 
@@ -551,7 +653,7 @@ namespace ADCollector
             Console.WriteLine(@"   / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |   ");
             Console.WriteLine(@"  /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|   ");
             Console.WriteLine();
-            Console.WriteLine("   v2.0.1  by dev2null\r\n");
+            Console.WriteLine("   v2.1.1  by dev2null\r\n");
         }
 
     }
