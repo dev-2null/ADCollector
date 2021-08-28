@@ -87,9 +87,9 @@ namespace ADCollector
 
                 return policies;
             }
-            catch (Exception e)
+            catch
             {
-                PrintYellow(string.Format("[x] ERROR: {0}\n", e.Message));
+                PrintYellow($"[x] Unable Access SYSVOL on {accessDC}");
                 return null;
             }
         }
@@ -1522,14 +1522,14 @@ namespace ADCollector
                     for (int i = 0; i < secDescriptor.Count; i++)
                     {
                         var sid = new SecurityIdentifier((byte[])secDescriptor[i], 0).ToString();
-                        var name = SIDName(rootDn, sid);
+                        var name = SIDName(sid);
                         if (name == null) 
                         { 
                             secDescription.Add(sid); 
                         } 
                         else
                         {
-                            secDescription.Add(SIDName(rootDn, sid));
+                            secDescription.Add(SIDName(sid));
                         }
                     }
                 }
@@ -1770,14 +1770,7 @@ namespace ADCollector
                     string caHostname = csEntry.Attributes["dnshostname"][0].ToString();
                     string caName = csEntry.Attributes["name"][0].ToString();
                     string whenCreated = ConvertWhenCreated(csEntry.Attributes["whencreated"][0].ToString()).ToString();
-
-                    Debug.WriteLine("[*] Reading Remote Registry for EditFlags...");
                     
-                    int editFlags = (int)(ReadRemoteReg(caHostname,
-                        RegistryHive.LocalMachine,
-                        $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}\\PolicyModules\\CertificateAuthority_MicrosoftDefault.Policy")).GetValue("EditFlags");
-                    
-                    Debug.WriteLine("[*] Remote Registry Value Returned...");
 
                     //Adjusted from PKIAudit
                     foreach (var protocol in new string[] { "http://", "https://" })
@@ -1808,26 +1801,46 @@ namespace ADCollector
                                 certTemplates.Add(Encoding.UTF8.GetString((byte[])certTemp));
                             }
                         }
-
                         if (attribute == "mspki-enrollment-servers")
                         {
                             enrollServers = csEntry.Attributes[attribute][0].ToString().Replace("\n", ",");
                         }
-
                         if (attribute == "cacertificate")
                         {
                             caCertificates = GetCaCertificate(csEntry.Attributes[attribute]);
                         }
+                    }
 
-                        if (attribute == "whencreated")
+
+                    bool allowSuppliedSAN = false;
+                    bool usingLDAP;
+
+                    var remoteReg = ReadRemoteReg(caHostname,
+                        RegistryHive.LocalMachine,
+                        $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}\\PolicyModules\\CertificateAuthority_MicrosoftDefault.Policy");
+
+                    //If the remote registry cannot be accessed, using LDAP to retrieve security descriptor instead
+                    usingLDAP = remoteReg == null ? true : false;
+
+                    if (usingLDAP)
+                    {
+                        //Read DACL from LDAP, better than nothing
+                        byte[] ldapSecBytes;
+                        ActiveDirectorySecurity adRights;
+                        ldapSecBytes = (byte[])csEntry.Attributes["ntsecuritydescriptor"][0];
+                        if (ldapSecBytes.Length != 0)
                         {
-                            whenCreated = ConvertWhenCreated(csEntry.Attributes["whencreated"][0].ToString()).ToString();
+                            adRights = new ActiveDirectorySecurity();
+                            adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
+                            secDescriptors = GetDACL(csEntry.DistinguishedName, adRights);
                         }
-
+                    }
+                    else
+                    {
+                        int editFlags = (remoteReg == null) ? 0 : (int)(remoteReg).GetValue("EditFlags");
+                        allowSuppliedSAN = ((editFlags & 0x00040000) == 0x00040000);
 
                         //Reading DACL from the remote registry, nTSecurityDescriptor from LDAP does not have the necessary information 
-                        Debug.WriteLine("[*] Collecting ADCS DACL...");
-                        Debug.WriteLine("[*] Reading Remote Registry for Security...");
                         var regSec = (byte[])(ReadRemoteReg(caHostname,
                         RegistryHive.LocalMachine,
                         $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}")).GetValue("Security");
@@ -1836,29 +1849,13 @@ namespace ADCollector
                         var regSecDescriptor = new ActiveDirectorySecurity();
                         regSecDescriptor.SetSecurityDescriptorBinaryForm(regSec, AccessControlSections.All);
                         secDescriptors = GetCSDACL(regSecDescriptor, out _, false);
-
-                        /*//Reading DACL from LDAP attribute nTSecurityDescriptor
-                        byte[] ldapSecBytes;
-                        ActiveDirectorySecurity adRights;
-                        if (attribute == "ntsecuritydescriptor")
-                        {
-                            ldapSecBytes = (byte[])csEntry.Attributes[attribute][0];
-                            if (ldapSecBytes.Length != 0)
-                            {
-                                adRights = new ActiveDirectorySecurity();
-                                adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
-                                secDescriptors = GetDACL(adRights, false);
-                            }
-                        }*/
-
-                        Debug.WriteLine("[*] ADCS DACL Collected...");
                     }
 
                     certServs.Add(new ADCS()
                     {
                         flags = flags,
                         caCertificates = caCertificates,
-                        allowUserSuppliedSAN = ((editFlags & 0x00040000) == 0x00040000),
+                        allowUserSuppliedSAN = allowSuppliedSAN,
                         owner = ConvertSIDToName(GetOwner(csEntry.DistinguishedName)),
                         CAName = caName,
                         whenCreated = whenCreated,

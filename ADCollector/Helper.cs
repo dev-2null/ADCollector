@@ -150,7 +150,7 @@ namespace ADCollector
         }
 
         //SID <=> Name
-        public static string SIDName(string dn, string name)
+        public static string SIDName(string name)
         {
             var sidRx = new Regex("^S-1-.*");
 
@@ -160,11 +160,11 @@ namespace ADCollector
             }
             else
             {
-                var nameResult = Collector.GetSingleResultEntry(dn, $"(name={name})", System.DirectoryServices.Protocols.SearchScope.Subtree, new string[] {"objectsid"}, false);
+                var nameResult = Collector.GetSingleResultEntry(Collector.forestDn, $"(name={name})", System.DirectoryServices.Protocols.SearchScope.Subtree, new string[] {"objectsid"}, true);
                 try {
                     return new SecurityIdentifier((byte[])nameResult.Attributes["objectsid"][0], 0).ToString();
                 }
-                catch { return null; }
+                catch { return name; }
             }
 
 
@@ -177,8 +177,8 @@ namespace ADCollector
 
             string[] sidAttr = { "cn" };
 
-            var sidResposne = Collector.GetSingleResultEntry(Collector.rootDn, sidFilter, System.DirectoryServices.Protocols.SearchScope.Subtree, sidAttr, false);
-            if (sidResposne == null) { return null; }
+            var sidResposne = Collector.GetSingleResultEntry(Collector.forestDn, sidFilter, System.DirectoryServices.Protocols.SearchScope.Subtree, sidAttr, true);
+            if (sidResposne == null) { return sid; }
 
             string name = sidResposne.Attributes["cn"][0].ToString();//  + "@" + Collector.domainName.ToUpper();
 
@@ -434,7 +434,8 @@ namespace ADCollector
             }
             catch (Exception e)
             {
-                PrintYellow("[x] Connecting remote reg hive error: " + e.Message);
+                System.Diagnostics.Debug.WriteLine("[x] Connecting remote reg hive error: " + e.Message);
+                return null;
             }
 
             RegistryKey key = null;
@@ -444,7 +445,8 @@ namespace ADCollector
             }
             catch (SecurityException e)
             {
-                PrintYellow($"[x] Opening remote reg '{regLocation}' error: " + e.Message);
+                System.Diagnostics.Debug.WriteLine($"[x] Opening remote reg '{regLocation}' error: " + e.Message);
+                return null;
             }
             return key;
         }

@@ -73,20 +73,14 @@ namespace ADCollector
 
 
 
-        public static void PrintKerberosPolicy()
+        public static void PrintKerberosPolicy(Dictionary<string,string> policies)
         {
             PrintGreen("\n[-] Kerberos Policy & System Access:\n");
-
-            try
+            if (policies == null || policies.Count == 0) { return; }
+            foreach (var policy in policies)
             {
-                var policies = Utilities.GetDomainPolicy();
-
-                foreach (var policy in policies)
-                {
-                    Console.WriteLine("    {0, -25}  {1,-8}", (policy.Key + " :"), policy.Value);
-                }
+                Console.WriteLine("    {0, -25}  {1,-8}", (policy.Key + " :"), policy.Value);
             }
-            catch { }
         }
 
 

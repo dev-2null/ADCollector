@@ -163,7 +163,8 @@ namespace ADCollector
 
             //Kerberos Policies & System Access
             accessDC = dcList[0].Attributes["dnsHostName"][0].ToString();
-            PrintKerberosPolicy();
+            var policies = Utilities.GetDomainPolicy();
+            PrintKerberosPolicy(policies);
 
 
             var GPOs = Utilities.GetGPO();
@@ -504,10 +505,10 @@ namespace ADCollector
 
                 return response.Entries[0];
             }
-            catch (Exception e)
+            catch
             {
                 Debug.WriteLine("[x] Collecting SingleResultEntry Failed (Filter: [{0}])...",filter);
-                PrintYellow("[x] ERROR: " + e.Message);
+                //PrintYellow("[x] ERROR: " + e.Message);
                 return null;
             }
             finally
@@ -561,7 +562,7 @@ namespace ADCollector
 
                 if (response.Controls.Length != 1 || !(response.Controls[0] is PageResultResponseControl))
                 {
-                    Console.WriteLine("The server does not support this advanced search operation");
+                    Console.WriteLine("[X] The server does not support this advanced search operation");
                     yield break;
                 }
 
