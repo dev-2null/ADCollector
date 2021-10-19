@@ -31,11 +31,11 @@ _**This tool is still under construction. Features will be implemented can be se
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
-* Unusual DCSync Accounts
+~~* Unusual DCSync Accounts~~
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
-* Group Policy Preference cpassword in SYSVOL/Cache
+* Group Policy Preference cpassword in SYSVOL~~/Cache~~
 * Effective GPOs on the current user/computer
 * Nested Group Membership
 * Restricted Group
@@ -104,43 +104,13 @@ Interactive Menu:
 
 
 ## Changelog
-##### v 1.1.1:
-    1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
-    2. It now supports searching in other domains. (command line parser is not implemented yet).
-    3. The code logic is reconstructed, less code, more understandable and cohesive.
-##### v 1.1.2:
-    1. Separated into three classes.
-    2. Dispose ldap connection properly.
-    3. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
-    4. LDAP basic info (supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
-    5. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
-    6. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
-    7. RODC (group that administers the RODC)
-##### v 1.1.3:
-    1. Fixed SPN scanning result, privilege accounts group membership
-    2. Password does not expire accounts; User accounts with SPN set; 
-    3. Kerberos Policy
-    4. Interesting ACLs enumeration for the domain object, resolving GUIDs
-    5. DC info is back
-##### v 1.1.4:
-    1. Some bugs are killed and some details are improved
-    2. SPN scanning is now optional
-    3. GPP cpassword in SYSVOL/Cache
-    4. Interesting ACLs on GPOs; Interesting descriptions on user objects;
-    5. Unusual DCSync accounts; Sensitive & not delegate accounts
-    6. Effective GPOs on user/computer
-    7. Restricted groups
-    8. Nested Group Membership
-    9. LAPS Password View Access
-##### v 2.0.0:
-    1. Complete Rewrite (more extensible)
-    2. Add Interactive Menu with command line choice
-    3. Use direct API call to enumerate Trust relationship
-    4. Update Applied GPO Enumeration with Security Filtering and WMI Filtering (WMIFilter needs to be checked manually)
-    5. Add LDAP DNS Record Enumeration
-    6. RunAs: Run ADCollector under another user context
-    7. Flexiable SPN Scan, DNS Records, Nested Group Membership, ACL Enumeration
-    8. Add NetSessionEnum, NetLocalGroupGetMembers and NetWkstaUserEnum
+
+
+##### v 2.1.2:
+    1. Bug fix with some improvements
+    2. New implementation logic for LAPS & Restricted Group enum
+    3. Use Task to handle some heavy enumeration functions (much faster for large domain)
+    4. Remove GPP cache and DCSync accounts enumeration
 ##### v 2.1.1:
     1. Search under a specific OU
     2. LAPS detailed view
@@ -151,6 +121,44 @@ Interactive Menu:
     7. Bug Fix: SYSVOL access, Nested Group Membership
     8. Replace external readINF dependency with custom implementation
     9. Protected Users
+##### v 2.0.0:
+    1. Complete Rewrite (more extensible)
+    2. Add Interactive Menu with command line choice
+    3. Use direct API call to enumerate Trust relationship
+    4. Update Applied GPO Enumeration with Security Filtering and WMI Filtering (WMIFilter needs to be checked manually)
+    5. Add LDAP DNS Record Enumeration
+    6. RunAs: Run ADCollector under another user context
+    7. Flexiable SPN Scan, DNS Records, Nested Group Membership, ACL Enumeration
+    8. Add NetSessionEnum, NetLocalGroupGetMembers and NetWkstaUserEnum
+##### v 1.1.4:
+    1. Some bugs are killed and some details are improved
+    2. SPN scanning is now optional
+    3. GPP cpassword in SYSVOL/Cache
+    4. Interesting ACLs on GPOs; Interesting descriptions on user objects;
+    5. Unusual DCSync accounts; Sensitive & not delegate accounts
+    6. Effective GPOs on user/computer
+    7. Restricted groups
+    8. Nested Group Membership
+    9. LAPS Password View Access
+##### v 1.1.3:
+    1. Fixed SPN scanning result, privilege accounts group membership
+    2. Password does not expire accounts; User accounts with SPN set; 
+    3. Kerberos Policy
+    4. Interesting ACLs enumeration for the domain object, resolving GUIDs
+    5. DC info is back
+##### v 1.1.2:
+    1. Separated into three classes.
+    2. Dispose ldap connection properly.
+    3. Enumerations: AdminSDHolder, Domain attributes(MAQ, minPwdLengthm maxPwdAge, lockOutThreshold, GP linked to the domain object), accounts don't need pre-authentication.
+    4. LDAP basic info (supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
+    5. SPN scanning (SPNs for MSSQL,Exchange,RDP and PS Remoting)
+    6. Constrained Delegation enumerations (S4U2Self, S4U2Proxy as well as Resources-based constrained delegation)
+    7. RODC (group that administers the RODC)
+##### v 1.1.1:
+    1. It now uses S.DS.P namespace to perform search operations, making searches faster and easier to implement. (It also supports paged search. )
+    2. It now supports searching in other domains. (command line parser is not implemented yet).
+    3. The code logic is reconstructed, less code, more understandable and cohesive.
+
 ## Project
 For more information (current progress/Todo list/etc) about this tool, you can visit my [project page](https://github.com/dev-2null/ADCollector/projects/1)
 

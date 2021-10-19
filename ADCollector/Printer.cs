@@ -7,6 +7,7 @@ using System.DirectoryServices.Protocols;
 using System.Security.Principal;
 using static ADCollector.Natives;
 using System.DirectoryServices;
+using System.Linq;
 
 namespace ADCollector
 {
@@ -393,7 +394,7 @@ namespace ADCollector
         public static void PrintSingleAttribute(List<string> myList, string banner)
         {
             PrintGreen(string.Format("\n[-] {0}:\n", banner));
-
+            if (myList == null||myList.Count == 0) { return; }
             foreach (string attr in myList)
             {
                 Console.WriteLine("    * {0}", attr);
@@ -404,7 +405,7 @@ namespace ADCollector
         public static void PrintSingleEntryAttribute(PropertyValueCollection entryProperty, string banner)
         {
             PrintGreen(string.Format("\n[-] {0}:\n", banner));
-
+            if (entryProperty == null) { return; }
             foreach (string attr in entryProperty)
             {
                 Console.WriteLine("    * {0}", attr);
@@ -416,7 +417,7 @@ namespace ADCollector
         {
             if (banner != null) { PrintGreen(string.Format("\n[-] {0}:\n", banner)); }
 
-            if (myDict == null) { return; }
+            if (myDict == null||myDict.Count == 0) { return; }
 
             foreach (var obj in myDict)
             {
@@ -437,7 +438,7 @@ namespace ADCollector
 
 
 
-        public static void PrintGPPPass(List<GPP> myGPP, bool inSYSVOL = true)
+        public static void PrintGPPPass(List<GPP?> myGPP, bool inSYSVOL = true)
         {
             string banner = inSYSVOL ? "SYSVOL" : "Cache";
 
@@ -445,7 +446,7 @@ namespace ADCollector
 
             if (myGPP == null|| myGPP.Count == 0) { return; }
 
-            foreach (var gpp in myGPP)
+            foreach (GPP gpp in myGPP.Where(v => v != null).ToList())
             {
                 Console.WriteLine("      * {0}", gpp.Path);
 
@@ -454,8 +455,7 @@ namespace ADCollector
                     if (p.Name != "Path")
                     {
                         Console.WriteLine("        {0, -22}  {1}", p.Name, p.GetValue(gpp));
-                    }
-                        
+                    }    
                 }
                 Console.WriteLine();
             }
@@ -480,7 +480,33 @@ namespace ADCollector
             Console.WriteLine("      Interesting DACL:");
             foreach (var acl in myACL)
             {
-                Console.WriteLine("      {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                Console.WriteLine("      {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights);
+            }
+        }
+
+
+        public static void PrintACLs(List<List<ACLs>> myACLList, string banner)
+        {
+
+            PrintGreen(string.Format("\n[-] {0}:\n", banner));
+
+            if (myACLList == null || myACLList.Count == 0) { return; }
+            foreach(var myACL in myACLList)
+            {
+                if(myACL == null || myACL.Count == 0) { continue; }
+
+                var targetEntry = GetSingleDirectoryEntry(myACL[0].ObjectDN);
+                var targetName = targetEntry.Properties.Contains("displayName") ? targetEntry.Properties["displayName"][0].ToString() : targetEntry.Properties["name"][0].ToString();
+
+
+                Console.WriteLine("    * {0}", targetName);
+                Console.WriteLine("      {0}", myACL[0].ObjectDN);
+                Console.WriteLine("      Interesting DACL:");
+                foreach (var acl in myACL)
+                {
+                    Console.WriteLine("      {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights);
+                }
+                Console.WriteLine();
             }
         }
 
@@ -523,25 +549,24 @@ namespace ADCollector
         }
 
 
-        public static void PrintRestrictedGroups(List<RestictedGroups> RestrictedGroups)
+        public static void PrintRestrictedGroups(List<RestictedGroups?> restrictedGroup)
         {
             PrintGreen(string.Format("\n[-] Restricted Groups:\n"));
-            if (RestrictedGroups == null || RestrictedGroups.Count == 0) { return; }
-            foreach (var rGroup in RestrictedGroups)
+            if (restrictedGroup == null || restrictedGroup.Count == 0) { return; }
+            foreach (RestictedGroups rGroup in restrictedGroup.Where(v => v != null).ToList())
             {
-                Console.WriteLine("\n    * GPO:           {0} {1}", rGroup.GPOName, rGroup.GPOID);
+                Console.WriteLine("    * GPO:           {0} {1}", rGroup.GPOName, rGroup.GPOID);
                 Console.WriteLine("      OU:            {0}", rGroup.OUDN);
                 foreach (var gMembership in rGroup.GroupMembership)
                 {
                     Console.WriteLine("      Group:         {0}", gMembership.Key.Split('.')[0]);
                     foreach (var membership in gMembership.Value)
                     {
-                        Console.WriteLine("      {0}:       {1}", membership.Key, membership.Value);
-
+                        Console.WriteLine("      {0,-13}  {1}", membership.Key+":", membership.Value);
                     }
-                    
+
                 }
-                
+                Console.WriteLine();
             }
 
         }
@@ -559,7 +584,7 @@ namespace ADCollector
                 Console.WriteLine("      Flags:                   {0}", certsrv.flags);
                 Console.WriteLine("      Enrollment Servers:      {0}", certsrv.enrollServers);
                 Console.WriteLine("      Certificate Templates:   {0}", string.Join(",",certsrv.certTemplates));
-                Console.WriteLine("      Enrollment Endpoints:    {0}", string.Join(",", certsrv.enrollmentEndpoints));
+                Console.WriteLine("      Enrollment Endpoints:    {0}", string.Join(",", certsrv.enrollmentEndpoints.Where(x=>x!=null).ToList()));
                 Console.WriteLine("      Supplied SAN Enabled:    {0}", certsrv.allowUserSuppliedSAN.ToString().ToUpper());
                 Console.WriteLine("      Owner:                   {0}", certsrv.owner);
                 Console.WriteLine("      DACL:");
@@ -567,7 +592,7 @@ namespace ADCollector
                 {
                     foreach (var acl in certsrv.securityDescriptors)
                     {
-                        Console.WriteLine("                               {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                        Console.WriteLine("                               {0,-35}{1}", acl.IdentityReference, acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
                     }
                 }
  
@@ -585,13 +610,13 @@ namespace ADCollector
 
 
 
-        public static void PrintCertTemplates(List<CertificateTemplates> certTemplates)
+        public static void PrintCertTemplates(List<CertificateTemplates?> certTemplates)
         {
             PrintGreen(string.Format("\n[-] Interesting Certificate Templates:\n"));
             if (certTemplates == null || certTemplates.Count == 0) { return; }
 
             
-            foreach (var template in certTemplates)
+            foreach (CertificateTemplates template in certTemplates.Where(v => v != null).ToList())
             {
                 if (template.isPublished)
                 {
@@ -608,13 +633,13 @@ namespace ADCollector
                     {
                         foreach (var acl in template.securityDescriptors)
                         {
-                            Console.WriteLine("                               {0}{1}", acl.IdentityReference + " - ", acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
+                            Console.WriteLine("                               {0,-35}{1}", acl.IdentityReference, acl.ActiveDirectoryRights.Replace("ExtendedRight", acl.ObjectType));
                         }
                     }
                     Console.WriteLine();
                 } 
             }
-            foreach(var template in certTemplates)
+            foreach(CertificateTemplates template in certTemplates.Where(v => v != null).ToList())
             {
                 if (!template.isPublished)
                 {
@@ -647,7 +672,7 @@ namespace ADCollector
             Console.WriteLine(@"   / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |   ");
             Console.WriteLine(@"  /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|   ");
             Console.WriteLine();
-            Console.WriteLine("   v2.1.1  by dev2null\r\n");
+            Console.WriteLine("   v2.1.2  by dev2null\r\n");
         }
 
     }

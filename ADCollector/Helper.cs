@@ -401,7 +401,7 @@ namespace ADCollector
             return (T)Enum.Parse(typeof(T), v);
         }
 
-        public static bool TestWebConnection(string url)
+        public static string TestWebConnection(string url)
         {
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.Timeout = 3000;
@@ -413,14 +413,14 @@ namespace ADCollector
             try
             {
                 response = (HttpWebResponse)req.GetResponse();
-                return response.StatusCode == HttpStatusCode.OK;
+                if (response.StatusCode == HttpStatusCode.OK) { return url; }else { return null; }
             }
             catch (WebException e) {
-                if (e.Status == WebExceptionStatus.ConnectFailure || e.Status == WebExceptionStatus.ConnectionClosed || e.Status == WebExceptionStatus.SendFailure ) { return false; }
+                if (e.Status == WebExceptionStatus.ConnectFailure || e.Status == WebExceptionStatus.ConnectionClosed || e.Status == WebExceptionStatus.SendFailure ) { return null; }
                 var resp = e.Response as HttpWebResponse;
-                if (resp == null) { return false; }
-                if (resp.StatusCode == HttpStatusCode.Unauthorized) { return true; }
-                return false;
+                if (resp == null) { return null; }
+                if (resp.StatusCode == HttpStatusCode.Unauthorized) { return url; }
+                return null;
             }
         }
 

@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace ADCollector
 {
@@ -805,7 +806,7 @@ namespace ADCollector
         //2. Find GPOs that are linked to each OU/Domain/Site
         //3. Iterate each GPO to find out if they have WMI filters: "gPCWQLFilter"
         //4. Find the WMI policy and check if the policy is filtered out: "msWMI-Parm2"
-        public static List<AppliedGPOs> GetAppliedGPOs(List<string> groupList,List<string> ouList, Dictionary<string, string> GPOs, bool onComputer = false, string customUser = null)
+        public static List<AppliedGPOs> GetAppliedGPOs(List<string> groupList, List<string> ouList, Dictionary<string, string> GPOs, bool onComputer = false, string customUser = null)
         {
             if (ouList == null) { return null; }
 
@@ -911,8 +912,67 @@ namespace ADCollector
         }
 
 
+        //Retrieve OU linked GPOs
+        public static async Task<List<AppliedGPOs?>> GetOUGPOsAsync(Dictionary<string, string> GPOs)
+        {
+            var allOUEntries = GetResultEntries(ouDn, "(ObjectCategory=organizationalunit)", SearchScope.Subtree, new string[] { "distinguishedName","gplink" });
+            if (allOUEntries == null) { return null; }
+
+            Regex gpoRx = new Regex(@"=(\{.+?\}),", RegexOptions.Compiled);
+
+            List<Task<AppliedGPOs?>> tasks = new List<Task<AppliedGPOs?>>();
+
+            foreach (var ouEntry in allOUEntries)
+            {
+                tasks.Add(Task.Run(() => GetOUGPOs(GPOs, ouEntry, gpoRx)));
+            }
+
+            var appliedGPOsList = (await Task.WhenAll(tasks)).ToList();
+            return appliedGPOsList;
+        }
 
 
+
+        public static AppliedGPOs? GetOUGPOs(Dictionary<string, string> GPOs, SearchResultEntry ouEntry, Regex gpoRx)
+        {
+            string gPOID = null;
+            string gPOName = null;
+            var linkedGPOAttr = new GPOAttributes();
+            var linkedGPOs = new List<GPOAttributes>();
+
+            if (ouEntry.Attributes.Contains("gplink"))
+            {
+                string[] gplinkArrary = Regex.Split(ouEntry.Attributes["gplink"][0].ToString(), @"\]\[");
+                if (gplinkArrary == null) { return null; }
+
+                foreach (var gplinkString in gplinkArrary)
+                {
+                    if (gplinkString.Replace(" ", "") == string.Empty) { continue; }
+
+                    Match matchGPO = gpoRx.Match(gplinkString);
+
+                    gPOID = matchGPO.Groups[1].ToString().ToUpper();
+
+                    string gpoDn = "CN=" + gPOID + ",CN=Policies,CN=System," + rootDn;
+
+                    try//in case the gpo was deleted
+                    {
+                        gPOName = GPOs[gPOID];
+                        linkedGPOAttr.GPOID = gPOID;
+                        linkedGPOAttr.GPOName = gPOName;
+
+                        linkedGPOs.Add(linkedGPOAttr);
+                    }
+                    catch { }
+                }
+            }
+
+            return new AppliedGPOs
+            {
+                LinkedGPOs = linkedGPOs,
+                OUDn = ouEntry.DistinguishedName
+            };
+        }
 
         public static bool IsDeniedPolicy(string gpoDn, List<string> SIDList)
         {
@@ -1018,54 +1078,66 @@ namespace ADCollector
 
 
 
-        public static List<string> GetGPPXML(string mydir = null)
+        public static async Task<List<string>> GetGPPXML(string mydir = null)
         {
             string gppPath = mydir ?? "\\\\" + accessDC + "\\SYSVOL\\" + domainName + "\\Policies\\";
 
             var xmlList = new List<string> { "Groups.xml", "Services.xml", "Scheduledtasks.xml", "Datasources.xml", "Printers.xml", "Drives.xml" };
 
-            var files = new List<string>();
+            List<Task<string>> tasks = new List<Task<string>>();
+            /*
+             * List<Task<List<ACLs>>> tasks = new List<Task<List<ACLs>>>();
+
+            foreach (string targetDn in targetDnList)
+            {
+                tasks.Add(Task.Run(() => GetInterestingACLs(targetDn)));
+            }
+
+            var aclList = (await Task.WhenAll(tasks)).ToList();
+             */
             try
             {
-                foreach (string file in Directory.GetFiles(gppPath))
+                foreach (string file in Directory.GetFiles(gppPath, "*.*", System.IO.SearchOption.AllDirectories))
                 {
-                    try
-                    {
-                        if (xmlList.Any(file.Contains))
-                        {
-                            files.Add(file);
-                        }
-                    }
-                    catch { }
+                     tasks.Add(Task.Run(() => CheckFile(xmlList, file)));
                 }
-
-                foreach (string directory in Directory.GetDirectories(gppPath))
-                {
-                    try
-                    {
-                        GetGPPXML(directory);
-                    }
-                    catch { }
-                }
-                
+                //foreach (string directory in Directory.GetDirectories(gppPath))
+                //{
+                //    try
+                //    {
+                //        GetGPPXML(directory);
+                //    }
+                //    catch { }
+                //}
             }
             catch { }
 
+            var files = (await Task.WhenAll(tasks)).ToList();
             return files;
         }
 
 
 
-
-
-
-        public static List<string> GetCachedGPP()
+        public static string CheckFile(List<string>xmlList, string file)
         {
-            string allUser = Environment.GetEnvironmentVariable("ALLUSERSPROFILE");
-
-            return allUser.Contains("ProgramData") ? GetGPPXML(allUser) : GetGPPXML(allUser + @"\Application Data");
-
+            try
+            {
+                if (xmlList.Any(file.Contains))
+                {
+                    return file;
+                }
+            }
+            catch { }
+            return null;
         }
+
+
+        //public static List<string> GetCachedGPP()
+        //{
+        //    string allUser = Environment.GetEnvironmentVariable("ALLUSERSPROFILE");
+
+        //    return allUser.Contains("ProgramData") ? GetGPPXML(allUser).Result : GetGPPXML(allUser + @"\Application Data").Result;
+        //}
 
 
 
@@ -1073,10 +1145,8 @@ namespace ADCollector
         //https://github.com/PowerShellMafia/PowerSploit/blob/master/Exfiltration/Get-GPPPassword.ps1
         //Search for groups.xml, scheduledtasks.xml, services.xml, datasources.xml, printers.xml and drives.xml
         //findstr /S /I cpassword \\<FQDN>\sysvol\<FQDN>\policies\*.xml
-        public static List<GPP> GetGPPPass(List<string> files)
+        public static async Task<List<GPP?>> GetGPPAsync(List<string> files)
         {
-            var GPPPassList = new List<GPP>();
-
             var gppDict = new Dictionary<string, string>();
 
             gppDict.Add("Groups.xml", "/Groups/User/Properties");
@@ -1088,98 +1158,105 @@ namespace ADCollector
 
             XmlDocument doc = new XmlDocument();
 
+            List<Task<GPP?>> tasks = new List<Task<GPP?>>();
+
             foreach (string path in files)
             {
-                try { doc.Load(path); } catch { continue; }
-
-                foreach (var gppXml in gppDict)
-                {
-                    doc.Load(path);
-
-                    if (doc.InnerXml.Contains("cpassword"))
-                    {
-                        var nodes = doc.DocumentElement.SelectNodes(gppXml.Value);
-
-                        switch (path.Split('\\').Last())
-                        {
-                            case "Groups.xml":
-                                foreach (XmlNode node in nodes)
-                                {
-                                    try
-                                    {
-                                        GPPPassList.Add(new GPP
-                                        {
-                                            UserName = node.Attributes["userName"].Value,
-                                            NewName = node.Attributes["newName"].Value,
-                                            CPassword = node.Attributes["cpassword"].Value,
-                                            Changed = node.ParentNode.Attributes["changed"].Value,
-                                            Path = path
-                                        });
-                                    }
-                                    catch { }
-                                }
-                                break;
-
-                            case "Services.xml":
-                                foreach (XmlNode node in nodes)
-                                {
-                                    try
-                                    {
-                                        GPPPassList.Add(new GPP
-                                        {
-                                            AccountName = node.Attributes["accountName"].Value,
-                                            CPassword = node.Attributes["cpassword"].Value,
-                                            Changed = node.ParentNode.Attributes["changed"].Value,
-                                            Path = path
-                                        });
-                                    }
-                                    catch { }
-                                }
-                                break;
-
-                            case "Scheduledtasks":
-                                foreach (XmlNode node in nodes)
-                                {
-                                    try
-                                    {
-                                        GPPPassList.Add(new GPP
-                                        {
-                                            RunAs = node.Attributes["runAs"].Value,
-                                            CPassword = node.Attributes["cpassword"].Value,
-                                            Changed = node.ParentNode.Attributes["changed"].Value,
-                                            Path = path
-                                        });
-                                    }
-                                    catch { }
-                                }
-                                break;
-
-                            default:
-                                foreach (XmlNode node in nodes)
-                                {
-                                    try
-                                    {
-                                        GPPPassList.Add(new GPP
-                                        {
-                                            UserName = node.Attributes["userName"].Value,
-                                            CPassword = node.Attributes["cpassword"].Value,
-                                            Changed = node.ParentNode.Attributes["changed"].Value,
-                                            Path = path
-                                        });
-                                    }
-                                    catch { }
-
-                                }
-                                break;
-                        }
-                    }
-                }
+                tasks.Add(Task.Run(() => GetGPP(doc, gppDict, path)));
             }
+            var GPPPassList = (await Task.WhenAll(tasks)).ToList();
             return GPPPassList;
         }
 
 
+        public static GPP? GetGPP(XmlDocument doc, Dictionary<string, string> gppDict, string path)
+        {
+            try { doc.Load(path); } catch { return null; }
 
+            foreach (var gppXml in gppDict)
+            {
+                doc.Load(path);
+
+                if (doc.InnerXml.Contains("cpassword"))
+                {
+                    var nodes = doc.DocumentElement.SelectNodes(gppXml.Value);
+
+                    switch (path.Split('\\').Last())
+                    {
+                        case "Groups.xml":
+                            foreach (XmlNode node in nodes)
+                            {
+                                try
+                                {
+                                    return new GPP
+                                    {
+                                        UserName = node.Attributes["userName"].Value,
+                                        NewName = node.Attributes["newName"].Value,
+                                        CPassword = node.Attributes["cpassword"].Value,
+                                        Changed = node.ParentNode.Attributes["changed"].Value,
+                                        Path = path
+                                    };
+                                }
+                                catch { }
+                            }
+                            break;
+
+                        case "Services.xml":
+                            foreach (XmlNode node in nodes)
+                            {
+                                try
+                                {
+                                    return new GPP
+                                    {
+                                        AccountName = node.Attributes["accountName"].Value,
+                                        CPassword = node.Attributes["cpassword"].Value,
+                                        Changed = node.ParentNode.Attributes["changed"].Value,
+                                        Path = path
+                                    };
+                                }
+                                catch { }
+                            }
+                            break;
+
+                        case "Scheduledtasks":
+                            foreach (XmlNode node in nodes)
+                            {
+                                try
+                                {
+                                    return new GPP
+                                    {
+                                        RunAs = node.Attributes["runAs"].Value,
+                                        CPassword = node.Attributes["cpassword"].Value,
+                                        Changed = node.ParentNode.Attributes["changed"].Value,
+                                        Path = path
+                                    };
+                                }
+                                catch { }
+                            }
+                            break;
+
+                        default:
+                            foreach (XmlNode node in nodes)
+                            {
+                                try
+                                {
+                                    return new GPP
+                                    {
+                                        UserName = node.Attributes["userName"].Value,
+                                        CPassword = node.Attributes["cpassword"].Value,
+                                        Changed = node.ParentNode.Attributes["changed"].Value,
+                                        Path = path
+                                    };
+                                }
+                                catch { }
+
+                            }
+                            break;
+                    }
+                }
+            }
+            return null;
+        }
 
         public static AuthorizationRuleCollection GetAuthorizationRules(string targetDn)
         {
@@ -1204,163 +1281,225 @@ namespace ADCollector
         }
 
 
-        public static List<ACLs> GetInterestingACLs(List<string> targetDnList,  out Dictionary<string, int> dcSyncList)
+        //public static List<ACLs> GetInterestingACLs(List<string> targetDnList)
+        //{
+        //    var aclList = new List<ACLs>();
+
+        //    //Adapted from https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1#L3746
+
+        //    Regex rights = new Regex(@"(GenericAll)|(.*Write.*)|(.*Create.*)|(.*Delete.*)", RegexOptions.Compiled);
+        //    //Regex replica = new Regex(@"(.*Replication.*)", RegexOptions.Compiled);
+
+        //    //string[] dcsync = { "DS-Replication-Get-Changes", "DS-Replication-Get-Changes-All", "DS-Replication-Get-Changes-In-Filtered-Set" };
+
+        //    foreach (string targetDn in targetDnList)
+        //    {
+        //        var owner = ConvertSIDToName(GetOwner(targetDn));
+
+        //        var rules = GetAuthorizationRules(targetDn);
+
+        //        if (rules == null) {return null; }
+
+ 
+        //        foreach (ActiveDirectoryAccessRule rule in rules)
+        //        {
+        //            var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
+
+        //            if (int.Parse(sid.Split('-').Last()) > 1000)
+        //            {
+        //                //Sometimes the identity reference cannot be resolved
+        //                string IR = null;
+        //                try
+        //                {
+        //                    IR = rule.IdentityReference.ToString();
+        //                    if (IR == rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString())
+        //                    {
+        //                        IR = ConvertSIDToName(IR);
+        //                    }
+        //                }
+        //                catch { }
+
+        //                if (rights.IsMatch(rule.ActiveDirectoryRights.ToString())|| (rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow"))
+        //                {
+        //                    //The ObjectType GUID maps to an extended right registered in the current forest schema, then that specific extended right is granted
+        //                    //Reference: https://www.blackhat.com/docs/us-17/wednesday/us-17-Robbins-An-ACE-Up-The-Sleeve-Designing-Active-Directory-DACL-Backdoors-wp.pdf
+
+        //                    string objType = ResolveRightsGuid(rule.ObjectType.ToString());
+
+        //                    aclList.Add(new ACLs
+        //                    {
+        //                        ObjectDN = targetDn,
+        //                        IdentityReference = IR,
+        //                        IdentitySID = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString(),
+        //                        ActiveDirectoryRights = rule.ActiveDirectoryRights.ToString(),
+        //                        ObjectType = objType
+        //                    });
+        //                }
+        //            }
+        //        }
+        //    }
+
+        //    return aclList;
+
+        //}
+
+
+        public static List<ACLs> GetInterestingACLs(string targetDn)
         {
             var aclList = new List<ACLs>();
 
-            dcSyncList = new Dictionary<string, int>();
+            var rules = GetAuthorizationRules(targetDn);
+
+            if (rules == null) { return aclList; }
 
             //Adapted from https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1#L3746
-
             Regex rights = new Regex(@"(GenericAll)|(.*Write.*)|(.*Create.*)|(.*Delete.*)", RegexOptions.Compiled);
             //Regex replica = new Regex(@"(.*Replication.*)", RegexOptions.Compiled);
 
-            string[] dcsync = { "DS-Replication-Get-Changes", "DS-Replication-Get-Changes-All", "DS-Replication-Get-Changes-In-Filtered-Set" };
+            //string[] dcsync = { "DS-Replication-Get-Changes", "DS-Replication-Get-Changes-All", "DS-Replication-Get-Changes-In-Filtered-Set" };
 
-            foreach (string targetDn in targetDnList)
+            foreach (ActiveDirectoryAccessRule rule in rules)
             {
-                var owner = ConvertSIDToName(GetOwner(targetDn));
+                var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
 
-                var rules = GetAuthorizationRules(targetDn);
-
-                if (rules == null) { dcSyncList = null; return null; }
-
- 
-                foreach (ActiveDirectoryAccessRule rule in rules)
+                if (int.Parse(sid.Split('-').Last()) > 1000)
                 {
-                    var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
-
-                    if (int.Parse(sid.Split('-').Last()) > 1000)
+                    //Sometimes the identity reference cannot be resolved
+                    string IR = null;
+                    try
                     {
-                        //Sometimes the identity reference cannot be resolved
-                        string IR = null;
-                        try
+                        IR = rule.IdentityReference.ToString();
+                        if (IR == rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString())
                         {
-                            IR = rule.IdentityReference.ToString();
-                            if (IR == rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString())
-                            {
-                                IR = ConvertSIDToName(IR);
-                            }
+                            IR = ConvertSIDToName(IR);
                         }
-                        catch { }
+                    }
+                    catch { }
+                    string objType = "";
+                    if (rule.ActiveDirectoryRights.ToString().Contains("ExtendedRight") && rule.AccessControlType.ToString() == "Allow")
+                    {
+                        //The ObjectType GUID maps to an extended right registered in the current forest schema, then that specific extended right is granted
+                        //Reference: https://www.blackhat.com/docs/us-17/wednesday/us-17-Robbins-An-ACE-Up-The-Sleeve-Designing-Active-Directory-DACL-Backdoors-wp.pdf
+                        objType = ResolveRightsGuid(rule.ObjectType.ToString(), true);
+                    }
 
-                        if (rights.IsMatch(rule.ActiveDirectoryRights.ToString())|| (rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow"))
+                    if (rights.IsMatch(rule.ActiveDirectoryRights.ToString()) || (rule.ActiveDirectoryRights.ToString() == "ExtendedRight" && rule.AccessControlType.ToString() == "Allow"))
+                    {
+                        aclList.Add(new ACLs
                         {
-
-
-                            //The ObjectType GUID maps to an extended right registered in the current forest schema, then that specific extended right is granted
-                            //Reference: https://www.blackhat.com/docs/us-17/wednesday/us-17-Robbins-An-ACE-Up-The-Sleeve-Designing-Active-Directory-DACL-Backdoors-wp.pdf
-
-                            string objType = ResolveRightsGuid(rule.ObjectType.ToString());
-
-                            aclList.Add(new ACLs
-                            {
-                                ObjectDN = targetDn,
-                                IdentityReference = IR,
-                                IdentitySID = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString(),
-                                ActiveDirectoryRights = rule.ActiveDirectoryRights.ToString(),
-                                ObjectType = objType
-                            });
-
-                            if (dcsync.Contains(objType))
-                            {
-                                if (dcSyncList.ContainsKey(IR))
-                                {
-                                    dcSyncList[IR] += 1;
-                                }
-                                else
-                                {
-                                    dcSyncList.Add(IR, 1);
-                                }
-                            }
-                        }
+                            ObjectDN = targetDn,
+                            IdentityReference = IR,
+                            IdentitySID = sid,
+                            ActiveDirectoryRights = rule.ActiveDirectoryRights.ToString().Replace("ExtendedRight", objType),
+                            ObjectType = objType
+                        });
                     }
                 }
             }
 
-            return aclList;
-
+            return aclList.Distinct().ToList();
         }
 
 
-        public static List<ACLs> GetLAPSViewACLs(List<string> targetDnList)
+        public static async Task<List<List<ACLs>>> GetInterestingACLsAsync(List<string> targetDnList)
         {
+            List<Task<List<ACLs>>> tasks = new List<Task<List<ACLs>>>();
+
+            foreach (string targetDn in targetDnList)
+            {
+                tasks.Add(Task.Run(() => GetInterestingACLs(targetDn)));
+            }
+
+            var aclList = (await Task.WhenAll(tasks)).ToList();
+
+            return aclList;
+        }
+
+
+
+        //First identify computers with LAPS enabled, then enumerate DACL of the parent OU
+        public static List<ACLs> GetLAPSViewACLs()
+        {
+            var lapsComputers = GetSingleAttr(ouDn, "(ms-Mcs-AdmPwdExpirationTime=*)", "distinguishedName");
+
+            if (lapsComputers == null || lapsComputers.Count == 0) { return null; }
+
+            Regex ous = new Regex(@",(CN=.*|OU=.*)", RegexOptions.Compiled);
+
+            var lapsOUs = lapsComputers.Select(ou => ous.Match(ou).Groups[1].Value).ToList();
+
             var aclList = new List<ACLs>();
 
             Regex rights = new Regex(@"(.*Read.*)", RegexOptions.Compiled);
 
-            foreach (string targetDn in targetDnList)
+            foreach (string targetDn in lapsOUs.Distinct())
             {
-                var owner = ConvertSIDToName(GetOwner(targetDn));
-
                 var rules = GetAuthorizationRules(targetDn);
 
                 if (rules == null) { return null; }
 
                 foreach (ActiveDirectoryAccessRule rule in rules)
                 {
-                    var sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
+                    string IR = rule.IdentityReference.ToString();
+                    string sid = "";
+                    try { sid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString(); }
+                    catch { sid = IR; }
 
-                    if (int.Parse(sid.Split('-').Last()) > 1000)
+                    //Sometimes the identity reference cannot be resolved
+                    if (IR == sid){try{ IR = ConvertSIDToName(IR); } catch { } }
+
+                    //FALSE for resolving Schema attribute instead of extended rights
+                    string objType = ResolveRightsGuid(rule.ObjectType.ToString(), false);
+
+                    if (rights.IsMatch(rule.ActiveDirectoryRights.ToString())
+                        && objType == "ms-Mcs-AdmPwd")
                     {
-                        //Sometimes the identity reference cannot be resolved
-                        string IR = null;
-                        try
+                        aclList.Add(new ACLs
                         {
-                            IR = rule.IdentityReference.ToString();
-                            if (IR == rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString())
-                            {
-                                IR = ConvertSIDToName(IR);
-                            }
-                        }
-                        catch { }
-
-                        //FALSE for resolving Schema attribute instead of extended rights
-                        string objType =ResolveRightsGuid(rule.ObjectType.ToString(), false);
-                        if (rights.IsMatch(rule.ActiveDirectoryRights.ToString())
-                            && objType == "ms-Mcs-AdmPwd")
-                        {
-                            aclList.Add(new ACLs
-                            {
-                                ObjectDN = targetDn,
-                                IdentityReference = IR,
-                                IdentitySID = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString(),
-                                ActiveDirectoryRights = rule.ActiveDirectoryRights.ToString(),
-                                ObjectType = objType
-                            });
-                        }
+                            ObjectDN = targetDn,
+                            IdentityReference = IR,
+                            IdentitySID = sid,
+                            ActiveDirectoryRights = rule.ActiveDirectoryRights.ToString(),
+                            ObjectType = objType
+                        });
                     }
+
                 }
             }
 
             return aclList;
-
         }
 
 
-
-
-
-
-
-
-        public static string ResolveRightsGuid(string rightsGuid, bool isRights = true)
+        //It does not work well with Task
+        public static string ResolveRightsGuid(string rightsGuid, bool isExtendedRights = true)
         {
-            string partition = isRights ? "CN=Extended-Rights,CN=Configuration," : "CN=Schema,CN=Configuration,";
+            if (isExtendedRights)
+            {
+                if (extendedRightsDict.ContainsKey(rightsGuid.ToLower()))
+                {
+                    return extendedRightsDict[rightsGuid.ToLower()];
+                }
+                //ms-TPM-OwnerInformation:aa4e1a6d-550d-4e05-8c35-4afcb917a9fe (this is a schema attribute...)
+                else { return null; }
+            }
+
+            //string partition = isExtendedRights ? "CN=Extended-Rights,CN=Configuration," : "CN=Schema,CN=Configuration,";
+            string partition = "CN=Schema,CN=Configuration,";
+
             //No SPACE near "="
             //From The .Net Developer Guide to Directory Services Programming Searching for Binary Data
 
             //resolve schema attributes / extended rights
-            string searchFilter = isRights ? @"(rightsGuid=" + rightsGuid + @")" :
-                @"(schemaIDGUID=" + BuildFilterOctetString(new Guid(rightsGuid).ToByteArray()) + @")";
-
+            //string searchFilter = isExtendedRights ? @"(rightsGuid=" + rightsGuid + @")" :
+            //    @"(schemaIDGUID=" + BuildFilterOctetString(new Guid(rightsGuid).ToByteArray()) + @")";
+            string searchFilter = @"(schemaIDGUID=" + BuildFilterOctetString(new Guid(rightsGuid).ToByteArray()) + @")";
             var rightsDn = partition + forestDn;
-
             var rightsAttrs = new string[] { "cn" };
 
             var rightsResult = GetSingleResultEntry(rightsDn, searchFilter, SearchScope.OneLevel, rightsAttrs, false);
 
-            if (rightsResult == null) { return null; }
+            if (rightsResult == null) {return rightsGuid; }
 
             return rightsResult.Attributes["cn"][0].ToString();
 
@@ -1422,33 +1561,19 @@ namespace ADCollector
         {
 
             var myList = new List<string>();
-
-            var targetEntry = GetSingleDirectoryEntry(targetDn);
-
-            var entryAttr = targetEntry.Properties[attribute];
-
-            return entryAttr;
-        }
-
-
-        public static List<string> GetAllOUs(string dn)
-        {
-            var allOUs = new List<string>();
-
-            var ouFilter =  @"(ObjectCategory=organizationalunit)";
-
-            string[] ouAttrs = { };
-
-            foreach (var result in GetResultEntries(dn, ouFilter, SearchScope.Subtree, ouAttrs, false))
+            try
             {
-                allOUs.Add(result.DistinguishedName);
+                var targetEntry = GetSingleDirectoryEntry(targetDn);
+
+                var entryAttr = targetEntry.Properties[attribute];
+
+                return entryAttr;
             }
-            return allOUs;
+            catch { return null; }
         }
 
 
-
-        public static string GetGPOLinkedOU(List<AppliedGPOs> OUGPOs, string gpoID)
+        public static string GetGPOLinkedOU(List<AppliedGPOs?> OUGPOs, string gpoID)
         {
             foreach(AppliedGPOs appliedGPO in OUGPOs)
             {
@@ -1540,10 +1665,7 @@ namespace ADCollector
 
 
 
-
-
-
-        public static List<RestictedGroups> GetRestrictedGroup(List<AppliedGPOs> OUGPOs, Dictionary<string, string> GPOs)
+        public static RestictedGroups? GetRestrictedGroup(List<AppliedGPOs?> OUGPOs, Dictionary<string, string> GPOs, KeyValuePair<string,string> gpo)
         {
             var restrictedGroup = new List<RestictedGroups>();
             string ouDn = "";
@@ -1552,158 +1674,151 @@ namespace ADCollector
             string groupName = "";
 
             string gpoDn = "CN=Policies,CN=System," + rootDn;
-
             string gpoPath = "\\\\" + accessDC + "\\SYSVOL\\" + domainName + "\\Policies\\";
-
             var groupMemRx = new Regex("__");
+            string gpDn = "CN=" + gpo.Key + ',' + gpoDn;
+            string gptPath = gpoPath + gpo.Key + "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf";
+            string gXmlPath = gpoPath + gpo.Key + "\\MACHINE\\Preferences\\Groups\\Groups.xml";
 
-            //var sidRx = new Regex("^S-1-.*");
-
-            foreach (var gpo in GPOs)
+            //Group Set through Group Policy Restricted Group (GptTmpl.inf) 
+            try
             {
+                var gpoInf = ReadInf(gptPath);
+                if (gpoInf == null) { return null; }
 
-                string gpDn = "CN=" + gpo.Key + ',' + gpoDn;
+                //IniData groups = groupParser.ReadFile(gptPath);
 
-                string gptPath = gpoPath + gpo.Key + "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf";
+                gpoName = gpo.Value;
+                gpoId = gpo.Key;
+                ouDn = GetGPOLinkedOU(OUGPOs, gpo.Key);
+                string relation = "";
 
-                string gXmlPath = gpoPath + gpo.Key + "\\MACHINE\\Preferences\\Groups\\Groups.xml";
-
-                //Group Set through Group Policy Restricted Group (GptTmpl.inf) 
-                try
+                if (gpoInf.ContainsKey("Group Membership"))
                 {
-                    var gpoInf = ReadInf(gptPath);
-                    if (gpoInf == null) { continue; }
+                    var groupMembership = new Dictionary<string, Dictionary<string, string>>();
 
-                    //IniData groups = groupParser.ReadFile(gptPath);
-
-                    gpoName = gpo.Value;
-                    gpoId = gpo.Key;
-                    ouDn = GetGPOLinkedOU(OUGPOs, gpo.Key);
-                    string relation = "";
-
-                    if (gpoInf.ContainsKey("Group Membership"))
+                    foreach (var pair in gpoInf["Group Membership"])
                     {
-                        
-                        var groupMembership = new Dictionary<string, Dictionary<string, string>>();
-                        
-                        foreach (var pair in gpoInf["Group Membership"])
+                        var relationship = new Dictionary<string, string>();
+                        string membership = "";
+
+                        if (pair.Key.Contains("Member"))
                         {
-                            var relationship = new Dictionary<string, string>();
-                            string membership = "";
+                            relation = groupMemRx.Split(pair.Key)[1];
 
-                            if (pair.Key.Contains("Member"))
+                            //KEY
+                            //If *  then it's SID, if not it's name
+                            if (groupMemRx.Split(pair.Key)[0].Contains('*'))
                             {
-                                relation = groupMemRx.Split(pair.Key)[1];
-
-                                //KEY
-                                //If *  then it's SID, if not it's name
-                                if (groupMemRx.Split(pair.Key)[0].Contains('*'))
+                                groupName = ConvertSIDToName(groupMemRx.Split(pair.Key)[0].Trim('*')) + "." + relation;
+                            }
+                            else
+                            {
+                                groupName = groupMemRx.Split(pair.Key)[0] + "." + relation;
+                            }
+                            //VALUE
+                            if (!string.IsNullOrEmpty(pair.Value))
+                            {
+                                if (pair.Value.Contains(','))
                                 {
-                                    groupName = ConvertSIDToName(groupMemRx.Split(pair.Key)[0].Trim('*'))+"." + relation;
-                                }
-                                else
-                                {
-                                    groupName = groupMemRx.Split(pair.Key)[0] + "." + relation;
-                                }
-                                //VALUE
-                                if (!string.IsNullOrEmpty(pair.Value))
-                                {
-
-                                    if (pair.Value.Contains(','))
+                                    foreach (string m in pair.Value.Split(','))
                                     {
-                                        foreach (string m in pair.Value.Split(','))
+                                        if (m.Contains('*'))
                                         {
-                                            if (m.Contains('*'))
-                                            {
-                                                membership += ConvertSIDToName(m.Trim()) + ", ";
-                                            }
-                                            else
-                                            {
-                                                membership += m.Trim() + ", ";
-                                            }
-                                        }
-                                        membership = membership.Trim(' ', ',');
-                                    }
-                                    else
-                                    {
-                                        if (pair.Value.Contains('*'))
-                                        {
-                                            membership = ConvertSIDToName(pair.Value.Trim());
+                                            membership += ConvertSIDToName(m.Trim()) + ", ";
                                         }
                                         else
                                         {
-                                            membership = pair.Value.Trim();
+                                            membership += m.Trim() + ", ";
                                         }
                                     }
-                                    if (relation.Equals("Members")) { relationship.Add("Members", membership);};
-
-                                    if (relation.Equals("Memberof")){ relationship.Add("Memberof", membership); };
-
-                                    groupMembership.Add(groupName, relationship);
-                                   
+                                    membership = membership.Trim(' ', ',');
                                 }
-                                
+                                else
+                                {
+                                    if (pair.Value.Contains('*'))
+                                    {
+                                        membership = ConvertSIDToName(pair.Value.Trim());
+                                    }
+                                    else
+                                    {
+                                        membership = pair.Value.Trim();
+                                    }
+                                }
+                                if (relation.Equals("Members")) { relationship.Add("Members", membership); };
+
+                                if (relation.Equals("Memberof")) { relationship.Add("Memberof", membership); };
+
+                                groupMembership.Add(groupName, relationship);
                             }
-                            
                         }
-
-                        restrictedGroup.Add(new RestictedGroups()
-                        {
-                            GPOID = gpoId,
-                            GPOName = gpoName,
-                            OUDN = ouDn,
-                            GroupMembership = groupMembership
-                        });
-
                     }
-
-                }
-                catch (Exception e) { PrintYellow("[x] ERROR: " + e.Message); }
-
-                //Group set through Group Policy Preference (group.xml)
-                try
-                {
-                    XmlDocument gXml = new XmlDocument();
-
-                    gXml.Load(gXmlPath);
-
-                    var gNodes = gXml.SelectNodes("/Groups/Group/Properties");
-
-                    var groupMembership = new Dictionary<string, Dictionary<string, string>>();
-
-                    
-
-                    foreach (XmlNode gNode in gNodes)
+                    return new RestictedGroups()
                     {
-                        var relationship = new Dictionary<string, string>();
-
-                        string members = "";
-                        gpoName = gpo.Value;
-                        gpoId = gpo.Key;
-                        ouDn = GetGPOLinkedOU(OUGPOs, gpo.Key);
-
-                        groupName = gNode.Attributes["groupName"].Value;
-
-                        var mNodes = gNode["Members"].SelectNodes("Member");
-
-                        foreach (XmlNode mNode in mNodes)
-                        {
-                            members += mNode.Attributes["name"].Value;
-                        }
-
-                        relationship.Add("Members", members);
-
-                        groupMembership.Add(groupName, relationship);
-                    }
-                    restrictedGroup.Add(new RestictedGroups() {
                         GPOID = gpoId,
                         GPOName = gpoName,
                         OUDN = ouDn,
                         GroupMembership = groupMembership
-                    });
+                    };
+
                 }
-                catch { }
             }
+            catch (Exception e) { PrintYellow("[x] ERROR: " + e.Message); }
+            //Group set through Group Policy Preference (group.xml)
+            try
+            {
+                XmlDocument gXml = new XmlDocument();
+
+                gXml.Load(gXmlPath);
+
+                var gNodes = gXml.SelectNodes("/Groups/Group/Properties");
+
+                var groupMembership = new Dictionary<string, Dictionary<string, string>>();
+
+                foreach (XmlNode gNode in gNodes)
+                {
+                    var relationship = new Dictionary<string, string>();
+
+                    string members = "";
+                    gpoName = gpo.Value;
+                    gpoId = gpo.Key;
+                    ouDn = GetGPOLinkedOU(OUGPOs, gpo.Key);
+
+                    groupName = gNode.Attributes["groupName"].Value;
+
+                    var mNodes = gNode["Members"].SelectNodes("Member");
+
+                    foreach (XmlNode mNode in mNodes)
+                    {
+                        members += mNode.Attributes["name"].Value;
+                    }
+
+                    relationship.Add("Members", members);
+
+                    groupMembership.Add(groupName, relationship);
+                }
+                return new RestictedGroups()
+                {
+                    GPOID = gpoId,
+                    GPOName = gpoName,
+                    OUDN = ouDn,
+                    GroupMembership = groupMembership
+                };
+            }
+            catch { return null; }
+        }
+
+
+        public static async  Task<List<RestictedGroups?>> GetRestrictedGroupAsync(List<AppliedGPOs?> OUGPOs, Dictionary<string, string> GPOs)
+        {
+            var tasks = new List<Task<RestictedGroups?>>();
+
+            foreach (var gpo in GPOs)
+            {
+                tasks.Add(Task.Run(() => GetRestrictedGroup(OUGPOs, GPOs, gpo)));
+            }
+
+            var restrictedGroup = (await Task.WhenAll(tasks)).ToList();
 
             return restrictedGroup;
         }
@@ -1743,279 +1858,431 @@ namespace ADCollector
             }
         }*/
 
-        public static List<ADCS> GetADCS()
+
+
+
+        public static async Task<List<ADCS>> GetADCSAsync()
         {
-            var certServs = new List<ADCS>();
-
-            List<ACLs> secDescriptors = new List<ACLs>();
-
-            string enrollServers = null;
-
             string csFilter = @"(objectCategory=pKIEnrollmentService)";
 
             string csDn = "CN=Enrollment Services,CN=Public Key Services,CN=Services," + configDn;
 
-            Debug.WriteLine("[*] Collecting ADCS Information...");
+            List<Task<ADCS>> tasks = new List<Task<ADCS>>();
 
-            try
+            foreach (SearchResultEntry csEntry in GetResultEntries(csDn, csFilter, SearchScope.Subtree, null, false))
             {
-                foreach (SearchResultEntry csEntry in GetResultEntries(csDn, csFilter, SearchScope.Subtree, null, false))
-                {
-                    Debug.WriteLine("[*] Collecting ADCS Result Entry...");
-
-                    List<string> certTemplates = new List<string>();
-                    List<string> enrollmentEndpoints = new List<string>();
-                    List<X509Certificate2> caCertificates = new List<X509Certificate2>();
-
-                    string caHostname = csEntry.Attributes["dnshostname"][0].ToString();
-                    string caName = csEntry.Attributes["name"][0].ToString();
-                    string whenCreated = ConvertWhenCreated(csEntry.Attributes["whencreated"][0].ToString()).ToString();
-                    
-
-                    //Adjusted from PKIAudit
-                    foreach (var protocol in new string[] { "http://", "https://" })
-                    {
-                        foreach(var suffix in new string[] { "/certsrv/", 
-                            $"/{caName}/_CES_Kerberos/service.svc", 
-                            $"/{caName}/_CES_Kerberos/service.svc/CES", 
-                            "/ADPolicyProvider_CEP_Kerberos/service.svc", 
-                            "/certsrv/mscep/" })
-                        {
-                            var url = protocol + caHostname + suffix;
-                            if (TestWebConnection(url))
-                            {
-                                enrollmentEndpoints.Add(url);
-                            }
-                        }
-                    }
-
-                    PkiCertificateAuthorityFlags flags = (PkiCertificateAuthorityFlags)Enum.Parse(typeof(PkiCertificateAuthorityFlags), csEntry.Attributes["flags"][0].ToString());
-                    
-                    //The target attribute may not exist
-                    foreach (string attribute in csEntry.Attributes.AttributeNames)
-                    {
-                        if (attribute == "certificatetemplates")
-                        {
-                            foreach (var certTemp in csEntry.Attributes[attribute])
-                            {
-                                certTemplates.Add(Encoding.UTF8.GetString((byte[])certTemp));
-                            }
-                        }
-                        if (attribute == "mspki-enrollment-servers")
-                        {
-                            enrollServers = csEntry.Attributes[attribute][0].ToString().Replace("\n", ",");
-                        }
-                        if (attribute == "cacertificate")
-                        {
-                            caCertificates = GetCaCertificate(csEntry.Attributes[attribute]);
-                        }
-                    }
-
-
-                    bool allowSuppliedSAN = false;
-                    bool usingLDAP;
-
-                    var remoteReg = ReadRemoteReg(caHostname,
-                        RegistryHive.LocalMachine,
-                        $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}\\PolicyModules\\CertificateAuthority_MicrosoftDefault.Policy");
-
-                    //If the remote registry cannot be accessed, using LDAP to retrieve security descriptor instead
-                    usingLDAP = remoteReg == null ? true : false;
-
-                    if (usingLDAP)
-                    {
-                        //Read DACL from LDAP, better than nothing
-                        byte[] ldapSecBytes;
-                        ActiveDirectorySecurity adRights;
-                        ldapSecBytes = (byte[])csEntry.Attributes["ntsecuritydescriptor"][0];
-                        if (ldapSecBytes.Length != 0)
-                        {
-                            adRights = new ActiveDirectorySecurity();
-                            adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
-                            secDescriptors = GetDACL(csEntry.DistinguishedName, adRights);
-                        }
-                    }
-                    else
-                    {
-                        int editFlags = (remoteReg == null) ? 0 : (int)(remoteReg).GetValue("EditFlags");
-                        allowSuppliedSAN = ((editFlags & 0x00040000) == 0x00040000);
-
-                        //Reading DACL from the remote registry, nTSecurityDescriptor from LDAP does not have the necessary information 
-                        var regSec = (byte[])(ReadRemoteReg(caHostname,
-                        RegistryHive.LocalMachine,
-                        $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}")).GetValue("Security");
-                        Debug.WriteLine("[*] Remote Registry Value Returned...");
-
-                        var regSecDescriptor = new ActiveDirectorySecurity();
-                        regSecDescriptor.SetSecurityDescriptorBinaryForm(regSec, AccessControlSections.All);
-                        secDescriptors = GetCSDACL(regSecDescriptor, out _, false);
-                    }
-
-                    certServs.Add(new ADCS()
-                    {
-                        flags = flags,
-                        caCertificates = caCertificates,
-                        allowUserSuppliedSAN = allowSuppliedSAN,
-                        owner = ConvertSIDToName(GetOwner(csEntry.DistinguishedName)),
-                        CAName = caName,
-                        whenCreated = whenCreated,
-                        dnsHostName = caHostname,
-                        enrollServers = enrollServers,
-                        securityDescriptors = secDescriptors,
-                        certTemplates = certTemplates,
-                        enrollmentEndpoints = enrollmentEndpoints
-                    });
-                    Debug.WriteLine("[*] Collected...");
-                }
+                tasks.Add(Task.Run(() => GetADCS(csEntry)));
             }
-            catch (Exception e)
-            {
-                PrintYellow(string.Format("[x] GetADCS ERROR: {0}\n", e.Message));
-                return null;
-            }
-            return certServs;
+
+            var caList = (await Task.WhenAll(tasks)).ToList();
+
+            return caList;
         }
 
 
-        public static List<CertificateTemplates> GetInterestingCertTemplates(List<ADCS> adcs)
+
+        public static ADCS GetADCS(SearchResultEntry csEntry)
         {
-            if(adcs.Count == 0) { return null; }
+            Debug.WriteLine("[*] Collecting ADCS Result Entry...");
 
-            Debug.WriteLine("[*] Collecting Certificate Templates...");
-
-            var certTemplateList = new List<CertificateTemplates>();
-
+            string enrollServers = null;
             List<ACLs> secDescriptors = new List<ACLs>();
+            List<string> certTemplates = new List<string>();
+            List<X509Certificate2> caCertificates = new List<X509Certificate2>();
 
+            string caHostname = csEntry.Attributes["dnshostname"][0].ToString();
+            string caName = csEntry.Attributes["name"][0].ToString();
+            string whenCreated = ConvertWhenCreated(csEntry.Attributes["whencreated"][0].ToString()).ToString();
+
+            var enrollmentEndpoints = TestEnrollmentEndpointsAsync(caName, caHostname).Result;
+
+            PkiCertificateAuthorityFlags flags = (PkiCertificateAuthorityFlags)Enum.Parse(typeof(PkiCertificateAuthorityFlags), csEntry.Attributes["flags"][0].ToString());
+
+            //The target attribute may not exist
+            foreach (string attribute in csEntry.Attributes.AttributeNames)
+            {
+                if (attribute == "certificatetemplates")
+                {
+                    foreach (var certTemp in csEntry.Attributes[attribute])
+                    {
+                        certTemplates.Add(Encoding.UTF8.GetString((byte[])certTemp));
+                    }
+                }
+                if (attribute == "mspki-enrollment-servers")
+                {
+                    enrollServers = csEntry.Attributes[attribute][0].ToString().Replace("\n", ",");
+                }
+                if (attribute == "cacertificate")
+                {
+                    caCertificates = GetCaCertificate(csEntry.Attributes[attribute]);
+                }
+            }
+
+
+            bool allowSuppliedSAN = false;
+            bool usingLDAP;
+
+            var remoteReg = ReadRemoteReg(caHostname,
+                RegistryHive.LocalMachine,
+                $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}\\PolicyModules\\CertificateAuthority_MicrosoftDefault.Policy");
+
+            //If the remote registry cannot be accessed, using LDAP to retrieve security descriptor instead
+            usingLDAP = remoteReg == null ? true : false;
+
+            if (usingLDAP)
+            {
+                //Read DACL from LDAP, better than nothing
+                byte[] ldapSecBytes;
+                ActiveDirectorySecurity adRights;
+                ldapSecBytes = (byte[])csEntry.Attributes["ntsecuritydescriptor"][0];
+                if (ldapSecBytes.Length != 0)
+                {
+                    adRights = new ActiveDirectorySecurity();
+                    adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
+                    secDescriptors = GetDACL(csEntry.DistinguishedName, adRights);
+                }
+            }
+            else
+            {
+                int editFlags = (remoteReg == null) ? 0 : (int)(remoteReg).GetValue("EditFlags");
+                allowSuppliedSAN = ((editFlags & 0x00040000) == 0x00040000);
+
+                //Reading DACL from the remote registry, nTSecurityDescriptor from LDAP does not have the necessary information 
+                var regSec = (byte[])(ReadRemoteReg(caHostname,
+                RegistryHive.LocalMachine,
+                $"SYSTEM\\CurrentControlSet\\Services\\CertSvc\\Configuration\\{caName}")).GetValue("Security");
+                Debug.WriteLine("[*] Remote Registry Value Returned...");
+
+                var regSecDescriptor = new ActiveDirectorySecurity();
+                regSecDescriptor.SetSecurityDescriptorBinaryForm(regSec, AccessControlSections.All);
+                secDescriptors = GetCSDACL(regSecDescriptor, out _, false);
+            }
+
+            Debug.WriteLine("[*] Collected...");
+
+            return new ADCS()
+            {
+                flags = flags,
+                caCertificates = caCertificates,
+                allowUserSuppliedSAN = allowSuppliedSAN,
+                owner = ConvertSIDToName(GetOwner(csEntry.DistinguishedName)),
+                CAName = caName,
+                whenCreated = whenCreated,
+                dnsHostName = caHostname,
+                enrollServers = enrollServers,
+                securityDescriptors = secDescriptors,
+                certTemplates = certTemplates,
+                enrollmentEndpoints = enrollmentEndpoints
+            };
+
+        }
+
+
+
+        public static async Task<List<string>> TestEnrollmentEndpointsAsync(string caName, string caHostname)
+        {
+            List<Task<string>> tasks = new List<Task<string>>();
+
+            //Adjusted from PKIAudit
+            foreach (var protocol in new string[] { "http://", "https://" })
+            {
+                foreach (var suffix in new string[] { "/certsrv/",
+                            $"/{caName}/_CES_Kerberos/service.svc",
+                            $"/{caName}/_CES_Kerberos/service.svc/CES",
+                            "/ADPolicyProvider_CEP_Kerberos/service.svc",
+                            "/certsrv/mscep/" })
+                {
+                    var url = protocol + caHostname + suffix;
+
+                    tasks.Add(Task.Run(() => TestWebConnection(url)));
+                }
+            }
+            var enrollmentEndpoints = (await Task.WhenAll(tasks)).ToList();
+
+            return enrollmentEndpoints;
+        }
+
+
+
+
+        public static async Task<List<CertificateTemplates?>> GetInterestingCertTemplatesAsync(List<ADCS> adcs)
+        {
             var certTemplateResultEntries = GetResultEntries("CN=Certificate Templates,CN=Public Key Services,CN=Services," + configDn,
                 @"(objectCategory=pKICertificateTemplate)",
                 SearchScope.Subtree,
                 new string[] { },
                 false);
-
-            if (certTemplateResultEntries == null) { Debug.WriteLine("[*] No Certificate Template Found..."); return null; }
-
-            Debug.WriteLine("[*] Collecting Certificate Templates Attributes...");
+            List<Task<CertificateTemplates?>> tasks = new List<Task<CertificateTemplates?>>();
 
             foreach (var certTemplateResultEntry in certTemplateResultEntries)
             {
-                bool isPublished = false;
-                string publishedBy = null;
-                bool hasControlRights = false;
-                ActiveDirectorySecurity adRights = new ActiveDirectorySecurity();
-                if (certTemplateResultEntry.Attributes.Contains("ntsecuritydescriptor"))
-                {
-                    byte[] ldapSecBytes;
-                    ldapSecBytes = (byte[])certTemplateResultEntry.Attributes["ntsecuritydescriptor"][0];
-                    if (ldapSecBytes.Length != 0)
-                    {
-                        
-                        adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
-                        secDescriptors = GetCSDACL(adRights, out hasControlRights, true);
-                    }
-                }
-
-                var enrollFlag = (msPKIEnrollmentFlag)Enum.Parse(typeof(msPKIEnrollmentFlag), certTemplateResultEntry.Attributes["mspki-enrollment-flag"][0].ToString());
-                var raSig = int.Parse(certTemplateResultEntry.Attributes["mspki-ra-signature"][0].ToString());
-                var certNameFlag = (msPKICertificateNameFlag)Enum.Parse(typeof(msPKICertificateNameFlag), (unchecked((uint)(Convert.ToInt32(certTemplateResultEntry.Attributes["mspki-certificate-name-flag"][0].ToString())))).ToString());
-                List<string> ekus = new List<string>();
-                List<string> ekuNames = new List<string>();
-                if (certTemplateResultEntry.Attributes.Contains("pkiextendedkeyusage"))
-                {
-                    foreach (byte[] eku in certTemplateResultEntry.Attributes["pkiextendedkeyusage"])
-                    {
-                        string ekuStr = Encoding.UTF8.GetString(eku);
-                        ekus.Add(ekuStr);
-                        ekuNames.Add(new Oid(ekuStr).FriendlyName);
-                    }
-                }
-
-
-                //If a low priv user has control rights over the templates
-                if (hasControlRights)
-                {
-                    foreach(var ca in adcs)
-                    {
-                        var certInCa = ca.certTemplates.FirstOrDefault(caCerts => caCerts.Contains(certTemplateResultEntry.Attributes["name"][0].ToString()));
-                        if (certInCa != null)
-                        {
-                            isPublished = true;
-                            publishedBy = ca.CAName;
-                        }
-                    }
-                    certTemplateList.Add(new CertificateTemplates
-                    {
-                        isPublished = isPublished,
-                        publishedBy = publishedBy,
-                        certNameFlag = certNameFlag,
-                        raSigature = raSig,
-                        owner = ConvertSIDToName(GetOwner(certTemplateResultEntry.DistinguishedName)),
-                        enrollFlag = enrollFlag,
-                        templateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
-                        templateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
-                        extendedKeyUsage = ekuNames,
-                        securityDescriptors = GetDACL(certTemplateResultEntry.DistinguishedName, adRights)//secDescriptors
-                    });
-                }
-                //If a low priv user can enroll
-                else if (secDescriptors.Any())
-                {
-                    Debug.WriteLine("[*] Checking manager approval...");
-                    //Check if manager approval is enabled
-                    if (!enrollFlag.HasFlag(msPKIEnrollmentFlag.PEND_ALL_REQUESTS))
-                    {
-                        Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
-                        Debug.WriteLine("[*] Checking authorized signatures...");
-                        //Check if authorized signatures are required
-                        if (raSig <= 0)
-                        {
-                            Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
-                            Debug.WriteLine("[*] Checking EKUs & ENROLLEE_SUPPLIES_SUBJECT ...");
-                            //Check if ENROLLEE_SUPPLIES_SUBJECT is enabled and a low priv user can request a cert for authentication 
-                            //Check if the template has dangerous EKUs
-                            if ((certNameFlag.HasFlag(msPKICertificateNameFlag.ENROLLEE_SUPPLIES_SUBJECT) && HasAuthenticationEKU(ekus)) || HasDanagerousEKU(ekus))
-                            {
-                                Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
-                                foreach (var ca in adcs)
-                                {
-                                    var certInCa = ca.certTemplates.FirstOrDefault(caCerts => caCerts.Contains(certTemplateResultEntry.Attributes["name"][0].ToString()));
-
-                                    if (certInCa != null)
-                                    {
-                                        isPublished = true;
-                                        publishedBy = ca.CAName;
-                                    }
-                                }
-                                if (secDescriptors.Count != 0)
-                                {
-                                    certTemplateList.Add(new CertificateTemplates
-                                    {
-                                        isPublished = isPublished,
-                                        publishedBy = publishedBy,
-                                        owner = ConvertSIDToName(GetOwner(certTemplateResultEntry.DistinguishedName)),
-                                        certNameFlag = certNameFlag,
-                                        raSigature = raSig,
-                                        enrollFlag = enrollFlag,
-                                        templateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
-                                        templateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
-                                        extendedKeyUsage = ekuNames,
-                                        securityDescriptors = GetDACL(certTemplateResultEntry.DistinguishedName, adRights)//secDescriptors
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-
+                tasks.Add(Task.Run(() => GetInterestingCertTemplates(adcs, certTemplateResultEntry)));
             }
-
-            if (certTemplateList.Count == 0) { Debug.WriteLine("[*] No Certificate Template Found..."); }
-            Debug.WriteLine("[*] Certificate Templates Collected...");
+            var certTemplateList = (await Task.WhenAll(tasks)).ToList();
             return certTemplateList;
         }
 
 
-        public static List<ACLs> GetCSDACL(ActiveDirectorySecurity adRights, out bool hasControlRights, bool findInteresting = false)
+
+        public static CertificateTemplates? GetInterestingCertTemplates(List<ADCS> adcs, SearchResultEntry certTemplateResultEntry)
+        {
+            List<ACLs> secDescriptors = new List<ACLs>();
+
+            bool isPublished = false;
+            string publishedBy = null;
+            bool hasControlRights = false;
+            ActiveDirectorySecurity adRights = new ActiveDirectorySecurity();
+
+            if (certTemplateResultEntry.Attributes.Contains("ntsecuritydescriptor"))
+            {
+                byte[] ldapSecBytes;
+                ldapSecBytes = (byte[])certTemplateResultEntry.Attributes["ntsecuritydescriptor"][0];
+                if (ldapSecBytes.Length != 0)
+                {
+
+                    adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
+                    secDescriptors = GetCSDACL(adRights, out hasControlRights, true,  certTemplateResultEntry.Attributes["cn"][0].ToString());
+                }
+            }
+
+            var enrollFlag = (msPKIEnrollmentFlag)Enum.Parse(typeof(msPKIEnrollmentFlag), certTemplateResultEntry.Attributes["mspki-enrollment-flag"][0].ToString());
+            var raSig = int.Parse(certTemplateResultEntry.Attributes["mspki-ra-signature"][0].ToString());
+            var certNameFlag = (msPKICertificateNameFlag)Enum.Parse(typeof(msPKICertificateNameFlag), (unchecked((uint)(Convert.ToInt32(certTemplateResultEntry.Attributes["mspki-certificate-name-flag"][0].ToString())))).ToString());
+            List<string> ekus = new List<string>();
+            List<string> ekuNames = new List<string>();
+
+            if (certTemplateResultEntry.Attributes.Contains("pkiextendedkeyusage"))
+            {
+                foreach (byte[] eku in certTemplateResultEntry.Attributes["pkiextendedkeyusage"])
+                {
+                    string ekuStr = Encoding.UTF8.GetString(eku);
+                    ekus.Add(ekuStr);
+                    ekuNames.Add(new Oid(ekuStr).FriendlyName);
+                }
+            }
+
+            //If a low priv user has control rights over the templates
+            if (hasControlRights)
+            {
+                foreach (var ca in adcs)
+                {
+                    var certInCa = ca.certTemplates.FirstOrDefault(caCerts => caCerts.Contains(certTemplateResultEntry.Attributes["name"][0].ToString()));
+                    if (certInCa != null)
+                    {
+                        isPublished = true;
+                        publishedBy = ca.CAName;
+                    }
+                }
+
+                return new CertificateTemplates
+                {
+                    isPublished = isPublished,
+                    publishedBy = publishedBy,
+                    certNameFlag = certNameFlag,
+                    raSigature = raSig,
+                    owner = ConvertSIDToName(GetOwner(certTemplateResultEntry.DistinguishedName)),
+                    enrollFlag = enrollFlag,
+                    templateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
+                    templateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
+                    extendedKeyUsage = ekuNames,
+                    securityDescriptors = GetCertTemplateDACL(certTemplateResultEntry.DistinguishedName, adRights)//secDescriptors
+                };
+            }
+
+            //If a low priv user can enroll
+            else if (secDescriptors.Any())
+            {
+                Debug.WriteLine("[*] Checking manager approval...");
+                //Check if manager approval is enabled
+                if (!enrollFlag.HasFlag(msPKIEnrollmentFlag.PEND_ALL_REQUESTS))
+                {
+                    Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+                    Debug.WriteLine("[*] Checking authorized signatures...");
+                    //Check if authorized signatures are required
+                    if (raSig <= 0)
+                    {
+                        Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+                        Debug.WriteLine("[*] Checking EKUs & ENROLLEE_SUPPLIES_SUBJECT ...");
+                        //Check if ENROLLEE_SUPPLIES_SUBJECT is enabled and a low priv user can request a cert for authentication 
+                        //Check if the template has dangerous EKUs
+                        Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+                        if ((certNameFlag.HasFlag(msPKICertificateNameFlag.ENROLLEE_SUPPLIES_SUBJECT) && HasAuthenticationEKU(ekus)) || HasDanagerousEKU(ekus))
+                        {
+                            Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+                            foreach (var ca in adcs)
+                            {
+                                var certInCa = ca.certTemplates.FirstOrDefault(caCerts => caCerts.Contains(certTemplateResultEntry.Attributes["name"][0].ToString()));
+
+                                if (certInCa != null)
+                                {
+                                    isPublished = true;
+                                    publishedBy = ca.CAName;
+                                }
+                            }
+                            if (secDescriptors.Count != 0)
+                            {
+                                return new CertificateTemplates
+                                {
+                                    isPublished = isPublished,
+                                    publishedBy = publishedBy,
+                                    owner = ConvertSIDToName(GetOwner(certTemplateResultEntry.DistinguishedName)),
+                                    certNameFlag = certNameFlag,
+                                    raSigature = raSig,
+                                    enrollFlag = enrollFlag,
+                                    templateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
+                                    templateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
+                                    extendedKeyUsage = ekuNames,
+                                    securityDescriptors = GetCertTemplateDACL(certTemplateResultEntry.DistinguishedName, adRights)//secDescriptors
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+
+        //public static List<CertificateTemplates> GetInterestingCertTemplates(List<ADCS> adcs)
+        //{
+        //    if(adcs.Count == 0) { return null; }
+
+        //    Debug.WriteLine("[*] Collecting Certificate Templates...");
+
+        //    var certTemplateList = new List<CertificateTemplates>();
+
+        //    List<ACLs> secDescriptors = new List<ACLs>();
+
+        //    var certTemplateResultEntries = GetResultEntries("CN=Certificate Templates,CN=Public Key Services,CN=Services," + configDn,
+        //        @"(objectCategory=pKICertificateTemplate)",
+        //        SearchScope.Subtree,
+        //        new string[] { },
+        //        false);
+
+        //    if (certTemplateResultEntries == null) { Debug.WriteLine("[*] No Certificate Template Found..."); return null; }
+
+        //    Debug.WriteLine("[*] Collecting Certificate Templates Attributes...");
+
+        //    foreach (var certTemplateResultEntry in certTemplateResultEntries)
+        //    {
+        //        bool isPublished = false;
+        //        string publishedBy = null;
+        //        bool hasControlRights = false;
+        //        ActiveDirectorySecurity adRights = new ActiveDirectorySecurity();
+        //        if (certTemplateResultEntry.Attributes.Contains("ntsecuritydescriptor"))
+        //        {
+        //            byte[] ldapSecBytes;
+        //            ldapSecBytes = (byte[])certTemplateResultEntry.Attributes["ntsecuritydescriptor"][0];
+        //            if (ldapSecBytes.Length != 0)
+        //            {
+                        
+        //                adRights.SetSecurityDescriptorBinaryForm(ldapSecBytes, AccessControlSections.All);
+        //                secDescriptors = GetCSDACL(adRights, out hasControlRights, true);
+        //            }
+        //        }
+
+        //        var enrollFlag = (msPKIEnrollmentFlag)Enum.Parse(typeof(msPKIEnrollmentFlag), certTemplateResultEntry.Attributes["mspki-enrollment-flag"][0].ToString());
+        //        var raSig = int.Parse(certTemplateResultEntry.Attributes["mspki-ra-signature"][0].ToString());
+        //        var certNameFlag = (msPKICertificateNameFlag)Enum.Parse(typeof(msPKICertificateNameFlag), (unchecked((uint)(Convert.ToInt32(certTemplateResultEntry.Attributes["mspki-certificate-name-flag"][0].ToString())))).ToString());
+        //        List<string> ekus = new List<string>();
+        //        List<string> ekuNames = new List<string>();
+        //        if (certTemplateResultEntry.Attributes.Contains("pkiextendedkeyusage"))
+        //        {
+        //            foreach (byte[] eku in certTemplateResultEntry.Attributes["pkiextendedkeyusage"])
+        //            {
+        //                string ekuStr = Encoding.UTF8.GetString(eku);
+        //                ekus.Add(ekuStr);
+        //                ekuNames.Add(new Oid(ekuStr).FriendlyName);
+        //            }
+        //        }
+
+
+        //        //If a low priv user has control rights over the templates
+        //        if (hasControlRights)
+        //        {
+        //            foreach(var ca in adcs)
+        //            {
+        //                var certInCa = ca.certTemplates.FirstOrDefault(caCerts => caCerts.Contains(certTemplateResultEntry.Attributes["name"][0].ToString()));
+        //                if (certInCa != null)
+        //                {
+        //                    isPublished = true;
+        //                    publishedBy = ca.CAName;
+        //                }
+        //            }
+        //            certTemplateList.Add(new CertificateTemplates
+        //            {
+        //                isPublished = isPublished,
+        //                publishedBy = publishedBy,
+        //                certNameFlag = certNameFlag,
+        //                raSigature = raSig,
+        //                owner = ConvertSIDToName(GetOwner(certTemplateResultEntry.DistinguishedName)),
+        //                enrollFlag = enrollFlag,
+        //                templateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
+        //                templateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
+        //                extendedKeyUsage = ekuNames,
+        //                securityDescriptors = GetDACL(certTemplateResultEntry.DistinguishedName, adRights)//secDescriptors
+        //            });
+        //        }
+        //        //If a low priv user can enroll
+        //        else if (secDescriptors.Any())
+        //        {
+        //            Debug.WriteLine("[*] Checking manager approval...");
+        //            //Check if manager approval is enabled
+        //            if (!enrollFlag.HasFlag(msPKIEnrollmentFlag.PEND_ALL_REQUESTS))
+        //            {
+        //                Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+        //                Debug.WriteLine("[*] Checking authorized signatures...");
+        //                //Check if authorized signatures are required
+        //                if (raSig <= 0)
+        //                {
+        //                    Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+        //                    Debug.WriteLine("[*] Checking EKUs & ENROLLEE_SUPPLIES_SUBJECT ...");
+        //                    //Check if ENROLLEE_SUPPLIES_SUBJECT is enabled and a low priv user can request a cert for authentication 
+        //                    //Check if the template has dangerous EKUs
+        //                    if ((certNameFlag.HasFlag(msPKICertificateNameFlag.ENROLLEE_SUPPLIES_SUBJECT) && HasAuthenticationEKU(ekus)) || HasDanagerousEKU(ekus))
+        //                    {
+        //                        Debug.WriteLine(certTemplateResultEntry.DistinguishedName);
+        //                        foreach (var ca in adcs)
+        //                        {
+        //                            var certInCa = ca.certTemplates.FirstOrDefault(caCerts => caCerts.Contains(certTemplateResultEntry.Attributes["name"][0].ToString()));
+
+        //                            if (certInCa != null)
+        //                            {
+        //                                isPublished = true;
+        //                                publishedBy = ca.CAName;
+        //                            }
+        //                        }
+        //                        if (secDescriptors.Count != 0)
+        //                        {
+        //                            certTemplateList.Add(new CertificateTemplates
+        //                            {
+        //                                isPublished = isPublished,
+        //                                publishedBy = publishedBy,
+        //                                owner = ConvertSIDToName(GetOwner(certTemplateResultEntry.DistinguishedName)),
+        //                                certNameFlag = certNameFlag,
+        //                                raSigature = raSig,
+        //                                enrollFlag = enrollFlag,
+        //                                templateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
+        //                                templateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
+        //                                extendedKeyUsage = ekuNames,
+        //                                securityDescriptors = GetDACL(certTemplateResultEntry.DistinguishedName, adRights)//secDescriptors
+        //                            });
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+
+        //    }
+
+        //    if (certTemplateList.Count == 0) { Debug.WriteLine("[*] No Certificate Template Found..."); }
+        //    Debug.WriteLine("[*] Certificate Templates Collected...");
+        //    return certTemplateList;
+        //}
+
+
+        public static List<ACLs> GetCSDACL(ActiveDirectorySecurity adRights, out bool hasControlRights, bool findInteresting = false, string usr = "")
         {
             hasControlRights = false;
 
@@ -2029,9 +2296,11 @@ namespace ADCollector
             foreach (ActiveDirectoryAccessRule rule in rules)
             {
                 string objType = null;
-                var IRSid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
-
                 string IR = rule.IdentityReference.ToString();
+                string IRSid = "";
+                try { IRSid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString(); }
+                catch { IRSid = IR; }
+
 
                 if (IR == IRSid)
                 {
@@ -2047,12 +2316,11 @@ namespace ADCollector
                     //The ObjectType GUID maps to an extended right registered in the current forest schema, then that specific extended right is granted
                     //Reference: https://www.blackhat.com/docs/us-17/wednesday/us-17-Robbins-An-ACE-Up-The-Sleeve-Designing-Active-Directory-DACL-Backdoors-wp.pdf
 
-                    objType = ResolveRightsGuid(rule.ObjectType.ToString());
+                    objType = ResolveRightsGuid(rule.ObjectType.ToString(), true);
                 }
 
                 if (findInteresting)
                 {
-
                     if (rule.AccessControlType.ToString() == "Allow" && IsLowPrivSid(IRSid))
                     {
                         //If a low priv user has certain control over the template
@@ -2072,7 +2340,7 @@ namespace ADCollector
                             });
                         }
                         //If a low priv user can enroll
-                        if ((rule.ActiveDirectoryRights.ToString().Contains("ExtendedRight")) && (objType == "Certificate-Enrollment" || rule.ObjectType.ToString() == "00000000-0000-0000-0000-000000000000"))
+                        if ((rule.ActiveDirectoryRights.ToString().Contains("ExtendedRight")) && (rule.ObjectType.ToString().ToLower() == "0e10c968-78fb-11d2-90d4-00c04f79dc55" || rule.ObjectType.ToString() == "00000000-0000-0000-0000-000000000000"))
                         {
                             aclList.Add(new ACLs
                             {
@@ -2083,7 +2351,6 @@ namespace ADCollector
                             });
                         }
                     }
-
                 }
                 else
                 {
@@ -2173,6 +2440,75 @@ namespace ADCollector
         }
 
 
+        public static List<ACLs> GetCertTemplateDACL(string objDn, ActiveDirectorySecurity adRights)
+        {
+            var aclList = new List<ACLs>();
+            var rules = adRights.GetAccessRules(true, true, typeof(SecurityIdentifier));
+
+            if (rules == null) { return aclList; }
+
+            var ownerSid = adRights.GetOwner(typeof(SecurityIdentifier)).ToString();
+
+            foreach (ActiveDirectoryAccessRule rule in rules)
+            {
+                string objType = null;
+                string IRSid = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString();
+
+                string IR = rule.IdentityReference.ToString();
+
+                if (IR == IRSid)
+                {
+                    try
+                    {
+                        IR = ConvertSIDToName(IR);
+                    }
+                    catch { }
+                }
+
+                //Adjusted from https://www.powershellgallery.com/packages/PSPKI/3.2.7.0/Content/Server%5CGet-CertificateTemplateAcl.ps1
+                string rights = rule.ActiveDirectoryRights.ToString();
+                string permission = null;
+
+                if(rights.Contains("GenericRead") || rights.Contains("GenericExecute"))
+                {
+                    permission += "Read ";
+                }
+                if (rights.Contains("WriteDacl"))
+                {
+                    permission += "Write ";
+                }
+                if (rights.Contains("GenericAll"))
+                {
+                    permission += "FullControll ";
+                }
+                if (rights.Contains("ExtendedRight") && rule.AccessControlType.ToString() == "Allow")
+                {
+                    var rightsGuid = rule.ObjectType.ToString().ToUpper();
+                    if (rightsGuid == "0E10C968-78FB-11D2-90D4-00C04F79DC55")
+                    {
+                        permission += "Enroll ";
+                    }
+                    if (rightsGuid == "A05B8CC2-17BC-4802-A710-E7C15AB866A2")
+                    {
+                        permission += "AutoEnroll ";
+                    }
+                }
+
+                aclList.Add(new ACLs
+                {
+                    ObjectDN = objDn,
+                    IdentityReference = IR,
+                    IdentitySID = rule.IdentityReference.Translate(typeof(SecurityIdentifier)).ToString(),
+                    ActiveDirectoryRights = permission,
+                    ObjectType = objType,
+                });
+
+            }
+
+            return aclList;
+        }
+
+
         public static List<List<ACLs>> InvokeACLScan(string targetIdentity)
         {
             if (targetIdentity == null) { PrintYellow("[x] Target Identity is required for ACL Scan."); return null; }
@@ -2238,6 +2574,29 @@ namespace ADCollector
             }
 
             return allSecDescriptors;
+        }
+
+        //Build Extended Rights Dictionary (somehow enum does not work well with threading)
+        public static Dictionary<string,string> BuildExtendedRightsDict()
+        {
+            var extendedRightsDict = new Dictionary<string, string>();
+            string extendedRightsDn = "CN=Extended-Rights," + configDn;
+
+            var rightsResult = GetResultEntries(extendedRightsDn, "(rightsGuid=*)", SearchScope.Subtree, new string[] { "rightsGuid","cn" });
+
+            foreach (var rights in rightsResult)
+            {
+                //Ignore duplicated rightsGuid DNS-Host-Name-Attributes & Validated-DNS-Host-Name: "72e39547-7b18-11d1-adef-00c04fd8d5cd"
+                string rightsGuid = rights.Attributes["rightsGuid"][0].ToString().ToLower();
+
+                if (rightsGuid == "72e39547-7b18-11d1-adef-00c04fd8d5cd") { continue; } 
+
+                extendedRightsDict.Add(rightsGuid, rights.Attributes["cn"][0].ToString()); 
+                
+            }
+            extendedRightsDict.Add("72e39547-7b18-11d1-adef-00c04fd8d5cd", "DNS-Host-Name-Attributes & Validated-DNS-Host-Name");
+            extendedRightsDict.Add("00000000-0000-0000-0000-000000000000", "");
+            return extendedRightsDict;
         }
     }
 }

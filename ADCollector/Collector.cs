@@ -37,6 +37,7 @@ namespace ADCollector
         public static DirectoryEntry rootDSE;
         public static string username;
         private static string _password;
+        internal static Dictionary<string, string> extendedRightsDict = new Dictionary<string, string>();
         internal static readonly ConcurrentBag<LdapConnection> _ldapConnections = new ConcurrentBag<LdapConnection>();
         internal static readonly ConcurrentBag<DirectoryEntry> _entryPool = new ConcurrentBag<DirectoryEntry>();
 
@@ -113,6 +114,8 @@ namespace ADCollector
                 }
             }
             else { ouDn = rootDn; }
+
+            extendedRightsDict = Utilities.BuildExtendedRightsDict();
         }
 
 
@@ -131,7 +134,7 @@ namespace ADCollector
                 {
                     Connect();
                     if (aclScan){  var dacl = Utilities.InvokeACLScan(identity); PrintACLs(dacl); }
-                    else if (adcs) { var adcs = Utilities.GetADCS(); PrintADCS(adcs); var certTemplateList = Utilities.GetInterestingCertTemplates(adcs); PrintCertTemplates(certTemplateList); }
+                    else if (adcs) { var adcs = Utilities.GetADCSAsync().Result; PrintADCS(adcs); var certTemplateList = Utilities.GetInterestingCertTemplatesAsync(adcs).Result; PrintCertTemplates(certTemplateList); }
                     else { RunAllCommands(); }
                 });
             }
@@ -139,7 +142,7 @@ namespace ADCollector
             {
                 Connect();
                 if (aclScan) { var dacl = Utilities.InvokeACLScan(identity); PrintACLs(dacl); }
-                else if (adcs) { var adcs = Utilities.GetADCS(); PrintADCS(adcs); var certTemplateList = Utilities.GetInterestingCertTemplates(adcs); PrintCertTemplates(certTemplateList); }
+                else if (adcs) { var adcs = Utilities.GetADCSAsync().Result; PrintADCS(adcs); var certTemplateList = Utilities.GetInterestingCertTemplatesAsync(adcs).Result; PrintCertTemplates(certTemplateList); }
                 else { RunAllCommands(); }
             }
         }
@@ -160,13 +163,12 @@ namespace ADCollector
             var rodcList = Utilities.GetDC(getRODC);
             PrintDC(rodcList, "Read-Only Domain Controllers");
 
-
+            
             //Kerberos Policies & System Access
             accessDC = dcList[0].Attributes["dnsHostName"][0].ToString();
             var policies = Utilities.GetDomainPolicy();
             PrintKerberosPolicy(policies);
-
-
+            
             var GPOs = Utilities.GetGPO();
 
             //Domain Attributes
@@ -180,19 +182,20 @@ namespace ADCollector
             PrintTrust(domainName);
 
 
-            //ADCS*
-            var adcs = Utilities.GetADCS();
+            //ADCS
+            var adcs = Utilities.GetADCSAsync().Result;
             PrintADCS(adcs);
 
-            var certTemplateList = Utilities.GetInterestingCertTemplates(adcs);
+            var certTemplateList = Utilities.GetInterestingCertTemplatesAsync(adcs).Result;
             PrintCertTemplates(certTemplateList);
- 
+
+
             //Nested Group Membership
             var userGroupList = Utilities.GetNestedGroupMem(out string uguser, false);
             PrintNestedGroupMem(userGroupList, uguser, null);
             var machineGroupList = Utilities.GetNestedGroupMem(out string mguser, true);
             PrintNestedGroupMem(machineGroupList, mguser, null);
-
+            
 
             //EffectiveGPOsOnUser
             string userDn = Utilities.GetDN(false, out string uname, null);
@@ -291,37 +294,15 @@ namespace ADCollector
             string term = "pass";
             var interestingDescrip = Utilities.GetGeneral(ouDn, @"(&(sAMAccountType=805306368)(description=*" + term + "*))", new string[] { "description" });
             PrintDirectoryAttrsDict(interestingDescrip, "Interesting Descriptions (default: pass) on User Objects");
-
-
-            //GPP Password in SYSVOL
-            var gppXml = Utilities.GetGPPXML();
-            var gppData = Utilities.GetGPPPass(gppXml);
-            PrintGPPPass(gppData);
-
-
-            //GPP Password in Cache
-            var gppCache = Utilities.GetGPPXML();
-            var gppCacheData = Utilities.GetGPPPass(gppCache);
-            PrintGPPPass(gppCacheData, false);
-
+            
 
             //Interesting ACLs on the domain object
-            var dcSyncList = new Dictionary<string, int>();
-            var domDnList = new List<string> { rootDn };
-            var domACLs = Utilities.GetInterestingACLs(domDnList, out dcSyncList);
+            var domACLs = Utilities.GetInterestingACLsAsync(new List<string> { rootDn }).Result;
             PrintACLs(domACLs, "Interesting ACLs on the domain object");
 
-            //DC Sync Accounts
-            PrintDCSync(dcSyncList);
 
-
-            //"CN=" + gPOID + ",CN=Policies,CN=System," + rootDn
-            var gpoDnList = new List<string>();
-            foreach (var gpo in GPOs)
-            {
-                gpoDnList.Add("CN=" + gpo.Key + ",CN=Policies,CN=System," + rootDn);
-            }
-            var gpoACLs = Utilities.GetInterestingACLs(gpoDnList, out _);
+            var gpoDnList = GPOs.Select(gpo => ("CN=" + gpo.Key + ",CN=Policies,CN=System," + rootDn)).ToList();
+            var gpoACLs = Utilities.GetInterestingACLsAsync(gpoDnList).Result;
             PrintACLs(gpoACLs, "Interesting ACLs on Group Policy Objects");
 
 
@@ -329,35 +310,37 @@ namespace ADCollector
             var confidentialAttrs = Utilities.GetSingleAttr(schemaDn, @"(searchFlags:1.2.840.113556.1.4.803:=128)", "name");
             PrintSingleAttribute(confidentialAttrs, "Confidential Attributes");
             
+
             //Machine Owners
             var hasCreator = Utilities.GetGeneral(ouDn, @"(ms-ds-CreatorSID=*)", new string[] { "ms-ds-CreatorSID" });
-
             PrintDirectoryAttrsDict(hasCreator, "Machine Owners");
-           
+            
+
             //LAPS Password View Access
-            var ouList = Utilities.GetSingleAttr(ouDn, "(objectClass=organizationalUnit)", "distinguishedName");
-            var ouACLs = Utilities.GetLAPSViewACLs(ouList);
+            var ouACLs = Utilities.GetLAPSViewACLs();
             PrintACLs(ouACLs, "LAPS Password View Access");
             Console.WriteLine();
-            var hasLaps = Utilities.GetGeneral(ouDn, @"(ms-Mcs-AdmPwdExpirationTime=*)", new string[] { "sAMAccountName", "ms-Mcs-AdmPwd" });
+            var hasLaps = Utilities.GetGeneral(ouDn, @"(ms-Mcs-AdmPwd=*)", new string[] { "sAMAccountName", "ms-Mcs-AdmPwd" });
             PrintDirectoryAttrsDict(hasLaps, null);
 
-            //Restricted Groups
-            var allOUs = Utilities.GetAllOUs(ouDn);
 
-            var ouGPOs = Utilities.GetAppliedGPOs(userGroupList, allOUs, GPOs);
-
-            var rGroups = Utilities.GetRestrictedGroup(ouGPOs,GPOs);
-
+            //Restricted Groups (not handling security filtering stuff here)
+            var ouGPOs = Utilities.GetOUGPOsAsync(GPOs).Result;
+            var rGroups = Utilities.GetRestrictedGroupAsync(ouGPOs,GPOs).Result;
             PrintRestrictedGroups(rGroups);
             
 
-            Console.WriteLine(); 
+            //GPP Password in SYSVOL
+            var gppXml = Utilities.GetGPPXML().Result;
+            var gppData = Utilities.GetGPPAsync(gppXml).Result;
+            PrintGPPPass(gppData);
+
+            Console.WriteLine();
         }
 
 
 
-        
+
 
         public void InteraciveMenu(int cmdChoice = 0, string parameter = null)
         {
@@ -439,7 +422,7 @@ namespace ADCollector
                     }
                     string objDn = parameter ?? Console.ReadLine();
                     var objDnList = new List<string> { objDn };
-                    var objACLs = Utilities.GetInterestingACLs(objDnList, out _);
+                    var objACLs = Utilities.GetInterestingACLsAsync(objDnList).Result;
                     PrintACLs(objACLs, "Interesting ACLs on the object");
                     break;
                 case 7://NetSessionEnum
@@ -603,14 +586,14 @@ namespace ADCollector
 
         private static LdapConnection ConnectLDAP()
         {
-            if (_ldapConnections.TryTake(out var connection))
-            {
-                return connection;
-            }
+            //if (_ldapConnections.TryTake(out var connection))
+            //{
+            //    return connection;
+            //}
 
             var identifier = new LdapDirectoryIdentifier(dc, port, false, false);
 
-            connection = (username != null) ?
+            var connection = (username != null) ?
                 new LdapConnection(identifier, new NetworkCredential(username, _password)) :
                 new LdapConnection(identifier);
             //new LdapConnection(identifier, new NetworkCredential(string.Empty, string.Empty))
