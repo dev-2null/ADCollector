@@ -11,6 +11,11 @@ It uses S.DS namespace to retrieve domain/forest information from the domain con
 
 _**This tool is still under construction. Features will be implemented can be seen from my [project page](https://github.com/dev-2null/ADCollector/projects/1)**_
 
+Make sure you have access to the SYSVOL if you run it from a non domain joined host. You may need to run the following command if harden UNC policy is applied:
+
+```batch
+reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths /v "\\*\SYSVOL" /d "RequireMutualAuthentication=0" /t REG_SZ
+```
 
 ## Enumeration
 * Current Domain/Forest information
@@ -31,11 +36,11 @@ _**This tool is still under construction. Features will be implemented can be se
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
-~~* Unusual DCSync Accounts~~
+* ~~Unusual DCSync Accounts~~
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
-* Group Policy Preference cpassword in SYSVOL~~/Cache~~
+* Group Policy Preference cpassword in SYSVOL~~, Cache~~
 * Effective GPOs on the current user/computer
 * Nested Group Membership
 * Restricted Group
