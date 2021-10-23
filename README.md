@@ -2,7 +2,7 @@
 ADCollector is a lightweight tool that enumerates the Active Directory environment to identify possible attack vectors. It will give you a basic understanding of the configuration/deployment of the environment as a starting point. 
 
 #### Notes: 
-ADCollector is not an alternative to the powerful PowerView, it just automates enumeration to quickly identify juicy information without thinking too much at the early Recon stage. Functions implemented in ADCollector are ideal for enumeration in a large Enterprise environment with lots of users/computers, without generating lots of traffic and taking a large amount of time. It only focuses on extracting useful attributes/properties/ACLs from the most valuable targets instead of enumerating all available attributes from all the user/computer objects in the domain. You will definitely need PowerView to do more detailed enumeration later.
+ADCollector is not an alternative to the powerful PowerView, it just automates enumeration to quickly identify juicy information without thinking too much at the early Recon stage. Functions implemented in ADCollector are ideal for enumeration in a large Enterprise environment with lots of users/computers, without generating lots of traffic and taking a large amount of time. It only focuses on extracting useful attributes/properties/ACLs from the most valuable targets instead of enumerating all available attributes from all the user/computer objects in the domain. ~~You will definitely need PowerView to do more detailed enumeration later.~~ You can use ADSI instead of PowerView to enumerate the domain as long as you know what you want to enumerate, see <https://dev-2null.github.io/Easy-Domain-Enumeration-with-ADSI/>.
 
 The aim of developing this tool is to help me learn more about Active Directory security in a different perspective as well as to figure out what's behind the scenes of those PowerView functions. 
 
@@ -11,6 +11,11 @@ It uses S.DS namespace to retrieve domain/forest information from the domain con
 
 _**This tool is still under construction. Features will be implemented can be seen from my [project page](https://github.com/dev-2null/ADCollector/projects/1)**_
 
+Make sure you have access to the SYSVOL if you run it from a non domain joined host. You may need to run the following command if harden UNC policy is applied:
+
+```batch
+reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths /v "\\*\SYSVOL" /d "RequireMutualAuthentication=0" /t REG_SZ
+```
 
 ## Enumeration
 * Current Domain/Forest information
@@ -31,11 +36,11 @@ _**This tool is still under construction. Features will be implemented can be se
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
-~~* Unusual DCSync Accounts~~
+* ~~Unusual DCSync Accounts~~
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
-* Group Policy Preference cpassword in SYSVOL~~/Cache~~
+* Group Policy Preference cpassword in SYSVOL ~~Cache~~
 * Effective GPOs on the current user/computer
 * Nested Group Membership
 * Restricted Group
