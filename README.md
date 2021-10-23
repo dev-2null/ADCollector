@@ -60,7 +60,7 @@ C:\Users> ADCollector.exe  -h
    / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |
   /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|
 
-  v2.1.1  by dev2null
+  v2.1.2  by dev2null
 
 Usage: ADCollector.exe -h
 
