@@ -174,13 +174,11 @@ namespace ADCollector
             //Domain Attributes
             PrintDomainAttr(rootDn, GPOs);
 
-
             //TDO
             PrintTDO(rootDn);
 
             //Trusts
             PrintTrust(domainName);
-
 
             //ADCS
             var adcs = Utilities.GetADCSAsync().Result;
@@ -299,7 +297,7 @@ namespace ADCollector
             //Interesting ACLs on the domain object
             var domACLs = Utilities.GetInterestingACLsAsync(new List<string> { rootDn }).Result;
             PrintACLs(domACLs, "Interesting ACLs on the domain object");
-
+            
 
             var gpoDnList = GPOs.Select(gpo => ("CN=" + gpo.Key + ",CN=Policies,CN=System," + rootDn)).ToList();
             var gpoACLs = Utilities.GetInterestingACLsAsync(gpoDnList).Result;
@@ -538,8 +536,8 @@ namespace ADCollector
                 }
                 catch (Exception e)
                 {
-                    //Console.WriteLine(e.StackTrace);
-                    PrintYellow($"[X] ERROR: {e.Message} (Cannot find the provided DN/OU)");
+                //    Console.WriteLine(e.StackTrace);
+                //    PrintYellow($"[X] ERROR: {e.Message} (Cannot find the provided DN/OU)");
                     yield break;
                 }
 

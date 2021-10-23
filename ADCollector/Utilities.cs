@@ -36,7 +36,8 @@ namespace ADCollector
 
             string[] dcAttrs = { "cn", "name", "dNSHostName", "logonCount", "operatingsystem", "operatingsystemversion", "whenCreated", "whenChanged", "managedBy", "dnsRecord"};
 
-            foreach(var result in GetResultEntries(rootDn, dcFilter, SearchScope.Subtree, dcAttrs, false))
+            var resultEntries = GetResultEntries(rootDn, dcFilter, SearchScope.Subtree, dcAttrs, false).ToList();
+            foreach (var result in resultEntries)
             {
                 dcList.Add(result);
             }
@@ -169,7 +170,8 @@ namespace ADCollector
 
             try
             {
-                foreach (var entry in GetResultEntries(wmiDn, wmiFilter, SearchScope.OneLevel, wmiAttrs, false))
+                var resultEntries = GetResultEntries(wmiDn, wmiFilter, SearchScope.OneLevel, wmiAttrs, false).ToList();
+                foreach (var entry in resultEntries)
                 {
                     wmiPolicies.Add(entry.Attributes["msWMI-ID"][0].ToString().ToUpper(), entry.Attributes["msWMI-Name"][0].ToString());
                 }
@@ -199,7 +201,7 @@ namespace ADCollector
             string gpoforestDn = "CN=Policies,CN=System," + forestDn;
 
             string[] gpoDns;
-            if (rootDn == forestDn)
+            if (rootDn != forestDn)
             {
                 gpoDns = new string[] { gporootDn, gpoforestDn };
             }
@@ -218,28 +220,28 @@ namespace ADCollector
             {
                 foreach(string gpodn in gpoDns)
                 {
-                    foreach (var entry in GetResultEntries(gpodn, gpoFilter, SearchScope.OneLevel, gpoAttrs, false))
+                    var gpoEntries = GetResultEntries(gpodn, gpoFilter, SearchScope.OneLevel, gpoAttrs, false).ToList();
+
+                    foreach (var entry in gpoEntries)
                     {
                         string dn = entry.Attributes["cn"][0].ToString().ToUpper();
-
                         string displayname = entry.Attributes["displayName"][0].ToString().ToUpper();
 
                         //WMI Filtering
                         if (entry.Attributes.Contains("gPCWQLFilter"))
                         {
                             string filterAttr = entry.Attributes["gPCWQLFilter"][0].ToString();
-
-                            Match filterM = filterRx.Match(filterAttr);
-
-                            string filter = filterM.Groups[1].ToString();
-
-                            string wmiName = WMIPolicies[filter];
-
-                            displayname += "   [* EvaluateWMIPolicy: " + wmiName + " - " + filter + "]";
+                            //Could be empty " "
+                            if (filterAttr.Length > 2)
+                            {
+                                Match filterM = filterRx.Match(filterAttr);
+                                string filter = filterM.Groups[1].ToString();
+                                string wmiName = WMIPolicies[filter];
+                                displayname += "   [* EvaluateWMIPolicy: " + wmiName + " - " + filter + "]";
+                            }
                         }
 
                         if (!groupPolicies.ContainsKey(dn)) { groupPolicies.Add(dn, displayname); }
-                        
                     }
                 }
                 return groupPolicies;
@@ -277,8 +279,8 @@ namespace ADCollector
             string[] dnsZoneAttrs = { "name" };
 
             var dnsZoneSearchResult = searchForest ?
-                GetResultEntries(fDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false) :
-                GetResultEntries(dDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false);
+                GetResultEntries(fDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false).ToList() :
+                GetResultEntries(dDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false).ToList();
 
             //excluding objects that have been removed
             string queryRecord = @"(&(objectClass=*)(!(DC=@))(!(DC=*DnsZones))(!(DC=*arpa))(!(DC=_*))(!dNSTombstoned=TRUE))";
@@ -293,7 +295,7 @@ namespace ADCollector
             {
                 Dictionary<string, string> dnsRecordDict = new Dictionary<string, string>();
 
-                var dnsResponse = GetResultEntries(dnsZone.DistinguishedName, queryRecord, SearchScope.OneLevel, dnsAttrs, false);
+                var dnsResponse = GetResultEntries(dnsZone.DistinguishedName, queryRecord, SearchScope.OneLevel, dnsAttrs, false).ToList();
 
                 foreach (var dnsResult in dnsResponse)
                 {
@@ -340,8 +342,8 @@ namespace ADCollector
             string[] dnsZoneAttrs = { "name" };
 
             var dnsZoneSearchResult = searchForest ?
-                GetResultEntries(fDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false) :
-                GetResultEntries(dDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false);
+                GetResultEntries(fDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false).ToList() :
+                GetResultEntries(dDnsDn, queryZones, SearchScope.Subtree, dnsZoneAttrs, false).ToList();
 
 
             string queryRecord = @"(&(objectClass=*)(!(DC=@))(!(DC=*DnsZones))(!(DC=*arpa))(!(DC=_*))(name=" + hostname+ "))";
@@ -380,7 +382,8 @@ namespace ADCollector
 
             string TDOdomainDn = "CN=System," + rootDN;
 
-            foreach (var result in GetResultEntries(TDOdomainDn, trustAccFilter, SearchScope.Subtree, trustAccAttrs, false))
+            var resultEntries = GetResultEntries(TDOdomainDn, trustAccFilter, SearchScope.Subtree, trustAccAttrs, false).ToList();
+            foreach (var result in resultEntries)
             {
                 tdoList.Add(result);
             }
@@ -915,7 +918,7 @@ namespace ADCollector
         //Retrieve OU linked GPOs
         public static async Task<List<AppliedGPOs?>> GetOUGPOsAsync(Dictionary<string, string> GPOs)
         {
-            var allOUEntries = GetResultEntries(ouDn, "(ObjectCategory=organizationalunit)", SearchScope.Subtree, new string[] { "distinguishedName","gplink" });
+            var allOUEntries = GetResultEntries(ouDn, "(ObjectCategory=organizationalunit)", SearchScope.Subtree, new string[] { "distinguishedName","gplink" }).ToList();
             if (allOUEntries == null) { return null; }
 
             Regex gpoRx = new Regex(@"=(\{.+?\}),", RegexOptions.Compiled);
@@ -1266,7 +1269,7 @@ namespace ADCollector
                 {
                     ActiveDirectorySecurity sec = aclEntry.ObjectSecurity;
 
-                    AuthorizationRuleCollection rules = sec.GetAccessRules(true, true, typeof(NTAccount));
+                    AuthorizationRuleCollection rules = sec.GetAccessRules(true, true, typeof(SecurityIdentifier));
 
                     return rules;
                 }
@@ -1396,7 +1399,6 @@ namespace ADCollector
                     }
                 }
             }
-
             return aclList.Distinct().ToList();
         }
 
@@ -1512,7 +1514,7 @@ namespace ADCollector
         {
             var objDict = new Dictionary<string, Dictionary<string, DirectoryAttribute>>();
 
-            var myResults = GetResultEntries(searchDn, myFilter, SearchScope.Subtree, attributes, false);
+            var myResults = GetResultEntries(searchDn, myFilter, SearchScope.Subtree, attributes, false).ToList();
 
             if (myResults == null) { return null; }
 
@@ -1543,7 +1545,7 @@ namespace ADCollector
 
             var myAttrs = new string[] { attribute };
 
-            var myResults = GetResultEntries(searchDn, myFilter, SearchScope.Subtree, myAttrs, false);
+            var myResults = GetResultEntries(searchDn, myFilter, SearchScope.Subtree, myAttrs, false).ToList();
 
             if (myResults == null) { return null; }
 
@@ -1630,7 +1632,7 @@ namespace ADCollector
 
                         ads.SetSecurityDescriptorBinaryForm((byte[])secDescriptor[i]);
 
-                        var rules = ads.GetAccessRules(true, true, typeof(NTAccount));
+                        var rules = ads.GetAccessRules(true, true, typeof(SecurityIdentifier));
 
                         foreach (ActiveDirectoryAccessRule rule in rules)
                         {
@@ -1869,7 +1871,8 @@ namespace ADCollector
 
             List<Task<ADCS>> tasks = new List<Task<ADCS>>();
 
-            foreach (SearchResultEntry csEntry in GetResultEntries(csDn, csFilter, SearchScope.Subtree, null, false))
+            var csEntries = GetResultEntries(csDn, csFilter, SearchScope.Subtree, null, false).ToList();
+            foreach (SearchResultEntry csEntry in csEntries)
             {
                 tasks.Add(Task.Run(() => GetADCS(csEntry)));
             }
@@ -2011,7 +2014,7 @@ namespace ADCollector
                 @"(objectCategory=pKICertificateTemplate)",
                 SearchScope.Subtree,
                 new string[] { },
-                false);
+                false).ToList();
             List<Task<CertificateTemplates?>> tasks = new List<Task<CertificateTemplates?>>();
 
             foreach (var certTemplateResultEntry in certTemplateResultEntries)
@@ -2523,7 +2526,7 @@ namespace ADCollector
 
             if (ouDn != rootDn)
             {
-                var allObjects = GetResultEntries(ouDn, "(ObjectCategory=*)", SearchScope.Subtree, null, false);
+                var allObjects = GetResultEntries(ouDn, "(ObjectCategory=*)", SearchScope.Subtree, null, false).ToList();
                 foreach(var obj in allObjects)
                 {
                     List<ACLs> secDescriptors = new List<ACLs>();
@@ -2549,7 +2552,7 @@ namespace ADCollector
             {
                 foreach(var partition in partitions)
                 {
-                    var allObjects = GetResultEntries(partition, "(ObjectCategory=*)", SearchScope.Subtree, null, false);
+                    var allObjects = GetResultEntries(partition, "(ObjectCategory=*)", SearchScope.Subtree, null, false).ToList();
                     foreach (var obj in allObjects)
                     {
                         List<ACLs> secDescriptors = new List<ACLs>();
@@ -2582,7 +2585,7 @@ namespace ADCollector
             var extendedRightsDict = new Dictionary<string, string>();
             string extendedRightsDn = "CN=Extended-Rights," + configDn;
 
-            var rightsResult = GetResultEntries(extendedRightsDn, "(rightsGuid=*)", SearchScope.Subtree, new string[] { "rightsGuid","cn" });
+            var rightsResult = GetResultEntries(extendedRightsDn, "(rightsGuid=*)", SearchScope.Subtree, new string[] { "rightsGuid","cn" }).ToList();
 
             foreach (var rights in rightsResult)
             {
