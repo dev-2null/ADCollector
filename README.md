@@ -40,7 +40,7 @@ reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\H
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
-* Group Policy Preference cpassword in SYSVOL ~~Cache~~
+* Group Policy Preference cpassword in SYSVOL ~~ and Cache~~
 * Effective GPOs on the current user/computer
 * Nested Group Membership
 * Restricted Group
@@ -48,11 +48,12 @@ reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\H
 * ADCS Configurations
 * Machine Owner
 * ACL Scan
+* Privileges Rights defined in Group Policies
 
 
 ## Usage
 ```
-C:\Users> ADCollector.exe  -h
+PS C:\> .\ADCollector.exe --help
 
       _    ____   ____      _ _             _
      / \  |  _ \ / ___|___ | | | ___  ___ _| |_ ___  _ __
@@ -60,57 +61,55 @@ C:\Users> ADCollector.exe  -h
    / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |
   /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|
 
-  v2.1.2  by dev2null
+  v3.0.0  by dev2null
 
-Usage: ADCollector.exe -h
 
-    --Domain (Default: current domain)
-            Enumerate the specified domain
-    --Ldaps (Default: LDAP)
-            Use LDAP over SSL/TLS
-    --DiableSigning (Default: Enabled)
-            With --Ldaps
-    --DC (IP Address of the Domain Controller)
-    --OU (Search under an Organizational Unit)
-    --ADCS (Only enumerate certificate services)
-    --ACLScan (Perform ACL scan against all objects in Domain/Configuration/Schema partitions if no OU is provided)
-    --Identity (The Identity used for ACL Scan)
-    --UserName (Alternative UserName to Connect LDAP)
-    --Password (Alternative LDAP Credential)
-    --Interactive (Enter Interactive Menu)
-    --Choice (Command Line Option For Interactive Menu)
-    --Param (Parameter Value For Options in Interactive Menu)
+  --Domain            Domain to enumerate
+  --LDAPS             (Default: false) LDAP over SSL/TLS
+  --DisableSigning    (Default: false) Disable Kerberos Encryption (with -LDAPS flag)
+  --UserName          Alternative UserName
+  --Password          Alternative Credential
+  --DC                Alternative Domain Controller (Hostname/IP) to connect to
+  --OU                Perform the Search under a specific Organizational Unit
+  --ACLScan           (Default: false) Perform ACL scan for an Identity
+  --ADCS              (Default: false) Only Perform AD Certificate Service Check
+  --ADIDNS            (Default: false) Only Collect ADIDNS Records
+  --NGAGP             (Default: false) Only enumerate Nested Group Membership and Applied Group Policies on the target object
+  --DACL              (Default: false) Enumerate DACL on the target object (with DistinguishedName)
+  --SessionEnum       (Default: false) Debug Mode
+  --UserEnum          (Default: false) Debug Mode
+  --LocalGMEnum       (Default: false) Debug Mode
+  --Param             Parameter for other options
+  --Host              (Default: Localhost) Hostname for Session/User/Groupmember Enumeration
+  --Group             (Default: Administrators) Local Group Name for Local GroupMember Enumeration
+  --Debug             (Default: false) Debug Mode
+  --help              Display this help screen.
+
 Example: .\ADCollector.exe
          .\ADCollector.exe --LDAPs --DisableSigning
          .\ADCollector.exe --OU IT
          .\ADCollector.exe --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --ADCS
-         .\ADCollector.exe --ACLScan --Identity user --OU OU=IT,DC=domain,DC=local
+         .\ADCollector.exe --ADIDNS
+         .\ADCollector.exe --NGAGP --Param samaccountname
+         .\ADCollector.exe --DACL --Param DC=domain,DC=net
+         .\ADCollector.exe --ACLScan --Param user --OU OU=IT,DC=domain,DC=local
+         .\ADCollector.exe --SessionEnum --Host targetHost
+         .\ADCollector.exe --UserEnum --Host targetHost
+         .\ADCollector.exe --LocalGMEnum --Host targetHost --Group 'Remote Desktop Users'
          .\ADCollector.exe --Domain domain.local --Username user --Password pass
          .\ADCollector.exe --Domain domain.local --DC 10.10.10.1
-         .\ADCollector.exe --Domain domain.local --Choice 1
-         .\ADCollector.exe --Domain domain.local --Choice 3 --Param mssql*
 
-Interactive Menu:
-    ===================================
-                Interative Menu
-    0.  - EXIT
-    1.  - Collect LDAP DNS Records
-    2.  - Find Single LDAP DNS Record
-    3.  - SPN Scan
-    4.  - Find Nested Group Membership
-    5.  - Search Interesting Term on User Description Fields
-    6.  - Enumerate Interesting ACLs on an Object
-    7.  - NetSessionEnum
-    8.  - NetLocalGroupGetMembers
-    9.  - NetWkstaUserEnum
-    ===================================
 ```
 
 
 ## Changelog
 
-
+##### v 3.0.0:
+    1. Code Refactoring & Bug fix
+    2. Added privielge rights and object DACL enumeration
+    3. Added Debug mode
+    4. Merged interactive menu into command line and removed some simple LDAP enum (use ADSI, see [ADSI Enum](https://dev-2null.github.io/Easy-Domain-Enumeration-with-ADSI/))
 ##### v 2.1.2:
     1. Bug fix with some improvements
     2. New implementation logic for LAPS & Restricted Group enum
