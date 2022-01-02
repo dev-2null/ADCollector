@@ -42,13 +42,13 @@ namespace ADCollector3
         [Option("DACL", Default = false, HelpText = "Enumerate DACL on the target object (with DistinguishedName)")]
         public bool DACL { get; set; }
 
-        [Option("SessionEnum", Default = false, HelpText = "Debug Mode")]
+        [Option("SessionEnum", Default = false, HelpText = "Enumerate session information on the target host")]
         public bool SessionEnum { get; set; }
 
-        [Option("UserEnum", Default = false, HelpText = "Debug Mode")]
+        [Option("UserEnum", Default = false, HelpText = "Enumerate user information on the target host")]
         public bool UserEnum { get; set; }
 
-        [Option("LocalGMEnum", Default = false, HelpText = "Debug Mode")]
+        [Option("LocalGMEnum", Default = false, HelpText = "Enumerate local group members on the target host")]
         public bool LocalGMEnum { get; set; }
 
         [Option("Param", Default = null, HelpText = "Parameter for other options")]
@@ -78,9 +78,9 @@ namespace ADCollector3
   --ADIDNS            (Default: false) Only Collect ADIDNS Records
   --NGAGP             (Default: false) Only enumerate Nested Group Membership and Applied Group Policies on the target object
   --DACL              (Default: false) Enumerate DACL on the target object (with DistinguishedName)
-  --SessionEnum       (Default: false) Debug Mode
-  --UserEnum          (Default: false) Debug Mode
-  --LocalGMEnum       (Default: false) Debug Mode
+  --SessionEnum       (Default: false) Enumerate session information on the target host
+  --UserEnum          (Default: false) Enumerate user information on the target host
+  --LocalGMEnum       (Default: false) Enumerate local group members on the target host
   --Param             Parameter for other options
   --Host              (Default: Localhost) Hostname for Session/User/Groupmember Enumeration
   --Group             (Default: Administrators) Local Group Name for Local GroupMember Enumeration

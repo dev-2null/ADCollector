@@ -36,11 +36,10 @@ reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\H
 * LDAP basic info(supportedLDAPVersion, supportedSASLMechanisms, domain/forest/DC Functionality)
 * Kerberos Policy
 * Interesting ACLs on the domain object, resolving GUIDs (User defined object in the future)
-* ~~Unusual DCSync Accounts~~
 * Interesting ACLs on GPOs
 * Interesting descriptions on user objects
 * Sensitive & Not delegate account
-* Group Policy Preference cpassword in SYSVOL ~~ and Cache~~
+* Group Policy Preference cpassword in SYSVOL
 * Effective GPOs on the current user/computer
 * Nested Group Membership
 * Restricted Group
@@ -76,9 +75,9 @@ PS C:\> .\ADCollector.exe --help
   --ADIDNS            (Default: false) Only Collect ADIDNS Records
   --NGAGP             (Default: false) Only enumerate Nested Group Membership and Applied Group Policies on the target object
   --DACL              (Default: false) Enumerate DACL on the target object (with DistinguishedName)
-  --SessionEnum       (Default: false) Debug Mode
-  --UserEnum          (Default: false) Debug Mode
-  --LocalGMEnum       (Default: false) Debug Mode
+  --SessionEnum       (Default: false) Enumerate session information on the target host
+  --UserEnum          (Default: false) Enumerate user information on the target host
+  --LocalGMEnum       (Default: false) Enumerate local group members on the target host
   --Param             Parameter for other options
   --Host              (Default: Localhost) Hostname for Session/User/Groupmember Enumeration
   --Group             (Default: Administrators) Local Group Name for Local GroupMember Enumeration

@@ -14,7 +14,6 @@ namespace ADCollector3
             {
                 with.CaseInsensitiveEnumValues = true;
                 with.CaseSensitive = false;
-                with.HelpWriter = Console.Error;
                 with.HelpWriter = null;
             });
 

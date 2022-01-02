@@ -69,7 +69,6 @@
     <Compile Include="AsyncCollection.cs" />
     <Compile Include="BuildSearchString.cs" />
     <Compile Include="Objects\ADCS.cs" />
-    <Compile Include="Collector\CollectLAPSView.cs" />
     <Compile Include="Collector\CollectNestedGroupMembership.cs" />
     <Compile Include="Collector\CollectAppliedGPO.cs" />
     <Compile Include="Collector\CollectSYSVOL.cs" />
