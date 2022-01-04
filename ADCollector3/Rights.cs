@@ -25,7 +25,8 @@ namespace ADCollector3
                 DN = extendedRightsDn,
                 Filter = "(rightsGuid=*)",
                 ReturnAttributes = new string[] { "rightsGuid", "cn" },
-                Scope = SearchScope.Subtree
+                Scope = SearchScope.Subtree,
+                //UseGlobalCatalog = true
             }).ToList();
 
             foreach (var rights in rightsResult)
@@ -39,6 +40,7 @@ namespace ADCollector3
 
             }
             ExtendedRightsList.Add("72e39547-7b18-11d1-adef-00c04fd8d5cd", "DNS-Host-Name-Attributes & Validated-DNS-Host-Name");
+            ExtendedRightsList.Add("aa4e1a6d-550d-4e05-8c35-4afcb917a9fe", "ms-TPM-OwnerInformation");
             ExtendedRightsList.Add("00000000-0000-0000-0000-000000000000", "All");
         }
 
@@ -53,7 +55,8 @@ namespace ADCollector3
                 DN = Searcher.LdapInfo.SchemaDN,
                 Filter = "(schemaIDGUID=*)",
                 ReturnAttributes = new string[] { "schemaIDGUID", "cn" },
-                Scope = SearchScope.OneLevel
+                Scope = SearchScope.OneLevel,
+                //UseGlobalCatalog = true
             }).ToList();
 
             foreach (var rights in rightsResult)
@@ -80,6 +83,8 @@ namespace ADCollector3
             predefinedProp.Add("4c164200-20c0-11d0-a768-00aa006e0529", "Account Restrictions");
             predefinedProp.Add("5f202010-79a5-11d0-9020-00c04fc2d4cf", "Logon Information");
             predefinedProp.Add("e45795b3-9455-11d1-aebd-0000f80367c1", "Web Information");
+            predefinedProp.Add("9b026da6-0d3c-465c-8bee-5199d7165cba", "DS-Validated-Write-Computer");
+            predefinedProp.Add("037088f8-0ae1-11d2-b422-00a0c968f939", "RAS-Information");
             foreach(var prop in predefinedProp)
             {
                 if (!SchemaList.ContainsKey(prop.Key))
@@ -103,7 +108,7 @@ namespace ADCollector3
                 else 
                 {
                     _logger.Warn($"{rightsGuid} is extended rights but cannot be resolved");
-                    return null; 
+                    return rightsGuid; 
                 }
             }
             else
@@ -115,7 +120,7 @@ namespace ADCollector3
                 else
                 {
                     _logger.Warn($"{rightsGuid} is a schema attribute but cannot be resolved");
-                    return null;
+                    return rightsGuid;
                 }
             }
 

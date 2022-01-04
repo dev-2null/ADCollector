@@ -70,15 +70,14 @@ PS C:\> .\ADCollector.exe --help
   --Password          Alternative Credential
   --DC                Alternative Domain Controller (Hostname/IP) to connect to
   --OU                Perform the Search under a specific Organizational Unit
-  --ACLScan           (Default: false) Perform ACL scan for an Identity
+  --ACLScan           Perform ACL scan for an Identity
   --ADCS              (Default: false) Only Perform AD Certificate Service Check
   --ADIDNS            (Default: false) Only Collect ADIDNS Records
-  --NGAGP             (Default: false) Only enumerate Nested Group Membership and Applied Group Policies on the target object
-  --DACL              (Default: false) Enumerate DACL on the target object (with DistinguishedName)
+  --NGAGP             Only enumerate Nested Group Membership and Applied Group Policies on the target object
+  --DACL              Enumerate DACL on the target object (with DistinguishedName)
   --SessionEnum       (Default: false) Enumerate session information on the target host
   --UserEnum          (Default: false) Enumerate user information on the target host
   --LocalGMEnum       (Default: false) Enumerate local group members on the target host
-  --Param             Parameter for other options
   --Host              (Default: Localhost) Hostname for Session/User/Groupmember Enumeration
   --Group             (Default: Administrators) Local Group Name for Local GroupMember Enumeration
   --Debug             (Default: false) Debug Mode
@@ -90,9 +89,9 @@ Example: .\ADCollector.exe
          .\ADCollector.exe --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --ADCS
          .\ADCollector.exe --ADIDNS
-         .\ADCollector.exe --NGAGP --Param samaccountname
-         .\ADCollector.exe --DACL --Param DC=domain,DC=net
-         .\ADCollector.exe --ACLScan --Param user --OU OU=IT,DC=domain,DC=local
+         .\ADCollector.exe --NGAGP samaccountname
+         .\ADCollector.exe --DACL DC=domain,DC=net
+         .\ADCollector.exe --ACLScan samaccountname --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --SessionEnum --Host targetHost
          .\ADCollector.exe --UserEnum --Host targetHost
          .\ADCollector.exe --LocalGMEnum --Host targetHost --Group 'Remote Desktop Users'

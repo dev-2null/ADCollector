@@ -63,17 +63,17 @@ namespace ADCollector3
                 {
                     adcollector.GetADIDNS();
                 }
-                else if (options.NGAGP)
+                else if (options.NGAGP != null)
                 {
-                    adcollector.GetNGAGP(new List<string> { options.Param });
+                    adcollector.GetNGAGP(new List<string> { options.NGAGP });
                 }
-                else if (options.DACL)
+                else if (options.DACL != null)
                 {
-                    adcollector.GetACL(options.Param);
+                    adcollector.GetACL(options.DACL);
                 }
-                else if (options.ACLScan)
+                else if (options.ACLScan != null)
                 {
-                    adcollector.InvokeACLScan(options.Param);
+                    adcollector.InvokeACLScan(options.ACLScan);
                 }
                 else
                 {
