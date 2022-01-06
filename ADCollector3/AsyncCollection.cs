@@ -141,7 +141,7 @@ namespace ADCollector3
             {
                 foreach(var path in gpoPathList)
                 {
-                    tasks.Add(Task.Run(() => GetXMLFileFromPath(path).Result));
+                    tasks.Add(Task.Run(() => GetXMLFileFromPath(path)));
                 }
             }
             catch { }
@@ -152,7 +152,7 @@ namespace ADCollector3
             {
                 foreach(string name in file)
                 {
-                    files.Add(name);
+                    if (name != null && name == string.Empty) { files.Add(name); }
                 }
             }
             return files;
