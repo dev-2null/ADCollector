@@ -65,8 +65,8 @@ namespace ADCollector3
             foreach (var protocol in new string[] { "http://", "https://" })
             {
                 foreach (var suffix in new string[] { "/certsrv/",
-                            $"/{caName}/_CES_Kerberos/service.svc",
-                            $"/{caName}/_CES_Kerberos/service.svc/CES",
+                            $"/{caName}_CES_Kerberos/service.svc",
+                            $"/{caName}_CES_Kerberos/service.svc/CES",
                             "/ADPolicyProvider_CEP_Kerberos/service.svc",
                             "/certsrv/mscep/" })
                 {
