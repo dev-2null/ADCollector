@@ -12,6 +12,7 @@ namespace ADCollector3
     {
         public static void DisplayTrust(List<Trust> domainTrusts)
         {
+            if (domainTrusts == null || domainTrusts.FirstOrDefault() == null) { return; }
             foreach (var trust in domainTrusts)
             {
                 foreach (var f in typeof(Trust).GetFields(BindingFlags.Public | BindingFlags.Instance))
