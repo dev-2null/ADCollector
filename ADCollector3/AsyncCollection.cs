@@ -4,6 +4,7 @@ using System.DirectoryServices.Protocols;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ADCollector3
@@ -172,6 +173,66 @@ namespace ADCollector3
 
             var files = (await Task.WhenAll(tasks)).ToList();
             return files;
+        }
+
+
+
+        public static List<CertificateTemplate> GetAllCertTemplatesAsync()
+        {
+            List<CertificateTemplate> CTS = new List<CertificateTemplate>();
+            var certTemplateList = Searcher.GetResultEntries(new LDAPSearchString
+            {
+                DN = "CN=Certificate Templates,CN=Public Key Services,CN=Services," + Searcher.LdapInfo.ConfigDN,
+                Filter = @"(objectCategory=pKICertificateTemplate)",
+                Scope = SearchScope.Subtree
+            }).ToList();
+
+            foreach (var certTemplate in certTemplateList)
+            {
+                CTS.Add(CertificateTemplate.GetAllCertTemplates(certTemplate));
+            }
+
+            return CTS;
+        }
+
+
+        public static List<string> GetAttributeCountAsync(List<string> attributes)
+        {
+            var attrCount = new List<string>();
+            int maxConcurrency = 20;
+
+            using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(maxConcurrency))
+            {
+                List<Task> tasks = new List<Task>();
+                foreach (var attr in attributes)
+                {
+                    concurrencySemaphore.Wait();
+                    var t = Task.Factory.StartNew(() =>
+                    {
+                        try
+                        {
+                            var temp = SchemaUtil.GetAttributeCount(attr);
+
+                            if (temp != null){ attrCount.Add(temp); }
+                        }
+                        finally
+                        {
+                            concurrencySemaphore.Release();
+                        }
+                    });
+                    tasks.Add(t);
+                }
+
+                Task.WaitAll(tasks.ToArray());
+            }
+
+            //foreach (var attr in attributes)
+            //{
+            //    tasks.Add(Task.Run(() => SchemaUtil.GetAttributeCount(attr)));
+            //}
+            //var c = (await Task.WhenAll(tasks)).ToList();
+
+            return attrCount;
         }
 
     }

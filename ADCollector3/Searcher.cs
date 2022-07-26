@@ -217,7 +217,7 @@ namespace ADCollector3
             try
             {
                 var request = GetRequest(searchString.DN, searchString.Filter, searchString.ReturnAttributes, searchString.Scope);
-                var pageReqControl = new PageResultRequestControl(500);
+                var pageReqControl = new PageResultRequestControl(searchString.PageSize);
                 request.Controls.Add(pageReqControl);
                 
                 while (true)
@@ -225,7 +225,7 @@ namespace ADCollector3
                     SearchResponse response;
                     try
                     {
-                        _logger.Debug("Sending Request...");
+                        //_logger.Debug("Sending Request...");
                         response = (SearchResponse)connection.SendRequest(request);
                         _logger.Debug($"{response.Entries.Count} Entries Received");
                     }
@@ -276,7 +276,7 @@ namespace ADCollector3
             
             try
             {
-                _logger.Debug("Sending Request...");
+                //_logger.Debug("Sending Request...");
                 _logger.Debug($"Collecting {searchString.Filter} from ({searchString.DN}) with SearchScope.{searchString.Scope}");
 
                 var response = (SearchResponse)connection.SendRequest(request);

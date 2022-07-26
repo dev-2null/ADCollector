@@ -10,6 +10,7 @@ namespace ADCollector3
         public string[] ReturnAttributes { get; set; }
         public SearchScope Scope { get; set; }
         public bool UseGlobalCatalog { get; set; }
+        public int PageSize = 500;
 
     }
 }

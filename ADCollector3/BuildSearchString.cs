@@ -156,30 +156,6 @@ namespace ADCollector3
 
 
 
-            //SPN: MSSQL
-            LDAPSearchStringObjectList.Add(new object[]
-            {
-                "Accounts with MSSQL Service SPNs", targetDN, @"(servicePrincipalName=mssql*)", new string[] { "servicePrincipalName", "sAMAccountName" }
-            });
-
-
-
-            //SPN: HTTP
-            LDAPSearchStringObjectList.Add(new object[]
-            {
-                "Accounts with HTTP Service SPNs", targetDN, @"(servicePrincipalName=http*)", new string[] { "servicePrincipalName", "sAMAccountName" }
-            });
-
-
-
-            //SPN: EXCHANGE
-            LDAPSearchStringObjectList.Add(new object[]
-            {
-                "Accounts with Exchange Service SPNs", targetDN, @"(servicePrincipalName=exchange*)", new string[] { "servicePrincipalName", "sAMAccountName" }
-            });
-
-
-
             //Privileged Accounts
             LDAPSearchStringObjectList.Add(new object[]
             {
@@ -271,6 +247,35 @@ namespace ADCollector3
             LDAPSearchStringObjectList.Add(new object[]
             {
                 "LAPS Password", targetDN, @"(ms-Mcs-AdmPwd=*)", new string[] { "sAMAccountName", "ms-Mcs-AdmPwd" }
+            });
+
+
+            //UserPassword
+            LDAPSearchStringObjectList.Add(new object[]
+            {
+                "User Passwords", targetDN, @"(|(userPassword=*)(UnixUserPassword=*)(unicodePwd=*)(msSFU30Password=*)(os400-password=*))", 
+                new string[] { "sAMAccountName", "userPassword", "UnixUserPassword", "unicodePwd", "msSFU30Password", "os400-password" }
+            });
+
+
+            //SPN: EXCHANGE
+            LDAPSearchStringObjectList.Add(new object[]
+            {
+                "Accounts with Exchange Service SPNs", targetDN, @"(servicePrincipalName=exchange*)", new string[] { "servicePrincipalName", "sAMAccountName" }
+            });
+
+
+            //SPN: HTTP
+            LDAPSearchStringObjectList.Add(new object[]
+            {
+                "Accounts with HTTP Service SPNs", targetDN, @"(servicePrincipalName=http*)", new string[] { "servicePrincipalName", "sAMAccountName" }
+            });
+
+
+            //SPN: MSSQL
+            LDAPSearchStringObjectList.Add(new object[]
+            {
+                "Accounts with MSSQL Service SPNs", targetDN, @"(servicePrincipalName=mssql*)", new string[] { "servicePrincipalName", "sAMAccountName" }
             });
         }
 

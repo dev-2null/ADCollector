@@ -27,17 +27,26 @@ namespace ADCollector3
         [Option("OU", Default = null, HelpText = "Perform the Search under a specific Organizational Unit")]
         public string OU { get; set; }
 
+        [Option("LDAPONLY", Default = false, HelpText = "Only Enumerate LDAP")]
+        public bool LDAPONLY { get; set; }
+
         [Option("ACLScan", Default = null, HelpText = "Perform ACL scan for an Identity")]
         public string ACLScan { get; set; }
 
         [Option("ADCS", Default = false, HelpText = "Only Perform AD Certificate Service Check")]
         public bool ADCS { get; set; }
 
+        [Option("TEMPLATES", Default = false, HelpText = "Only Enumerate All AD Certificate Templates")]
+        public bool TEMPLATES { get; set; }
+
         [Option("ADIDNS", Default = false, HelpText = "Only Collect ADIDNS Records")]
         public bool ADIDNS { get; set; }
 
         [Option("NGAGP", Default = null, HelpText = "Only enumerate Nested Group Membership and Applied Group Policies on the target object")]
         public string NGAGP { get; set; }
+
+        [Option("SCHEMA", Default = false, HelpText = "Count all attributes in the Schema")]
+        public bool SCHEMA { get; set; }
 
         [Option("DACL", Default = null, HelpText = "Enumerate DACL on the target object (with DistinguishedName)")]
         public string DACL { get; set; }
@@ -70,8 +79,11 @@ namespace ADCollector3
   --Password          Alternative Credential
   --DC                Alternative Domain Controller (Hostname/IP) to connect to
   --OU                Perform the Search under a specific Organizational Unit
+  --LDAPONLY          Only Enumearte Objects in LDAP
   --ACLScan           Perform ACL scan for an Identity
   --ADCS              (Default: false) Only Perform AD Certificate Service Check
+  --TEMPLATES         (Default: false) Only Enumerate All Certificate Templates with their DACL
+  --SCHEMA            (Default: false) Count Schema Attributes in the default naming context
   --ADIDNS            (Default: false) Only Collect ADIDNS Records
   --NGAGP             Only enumerate Nested Group Membership and Applied Group Policies on the target object
   --DACL              Enumerate DACL on the target object (with DistinguishedName)
@@ -88,6 +100,9 @@ Example: .\ADCollector.exe
          .\ADCollector.exe --OU IT
          .\ADCollector.exe --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --ADCS
+         .\ADCollector.exe --TEMPLATES
+         .\ADCollector.exe --LDAPOnly
+         .\ADCollector.exe --SCHEMA
          .\ADCollector.exe --ADIDNS
          .\ADCollector.exe --NGAGP samaccountname
          .\ADCollector.exe --DACL DC=domain,DC=net

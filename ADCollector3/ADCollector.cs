@@ -54,7 +54,7 @@ namespace ADCollector3
         public void GetLDAPBasicInfo(List<Dictionary<string, List<string>>> dl)
         {
             IDisplay displayer = new DisplayDL();
-            displayer.DisplayTitle("Basic LDAP Information");
+            IDisplay.DisplayTitle("Basic LDAP Information");
             IResult result = new DLResult { Result = dl };
             displayer.DisplayResult(result);
 
@@ -85,6 +85,14 @@ namespace ADCollector3
         }
 
 
+        public void GetLDAPOnly()
+        {
+            GetLDAPBasicInfo(new List<Dictionary<string, List<string>>> { Searcher.BasicLDAPInfo });
+
+            GetLDAP();
+        }
+
+
         public void GetSMB()
         {
             List<SearchString> smbSearchStringList = buildSearchString.GetSMBSearchString();
@@ -92,7 +100,7 @@ namespace ADCollector3
             foreach (var smbSearchString in smbSearchStringList)
             {
                 IDisplay displayer = new DisplayFileObjects();
-                displayer.DisplayTitle(smbSearchString.Title);
+                IDisplay.DisplayTitle(smbSearchString.Title);
                 if (!CanConnectSYSVOL) { continue; }
 
                 var sysvol = AsyncCollection.GetSYSVOLAsync(smbSearchString).Result;
@@ -113,23 +121,23 @@ namespace ADCollector3
 
             if (targetDn == null)
             {
-                displayer.DisplayTitle("Interesting ACL on the Domain Object");
+                IDisplay.DisplayTitle("Interesting ACL on the Domain Object");
                 var domainAcl = DACL.GetInterestingACLOnObject(Searcher.LdapInfo.RootDN);
                 result.Result = new List<DACL> { domainAcl };
                 displayer.DisplayResult(result);
 
-                displayer.DisplayTitle("Interesting ACL on Group Policy Objects");
+                IDisplay.DisplayTitle("Interesting ACL on Group Policy Objects");
                 var gposDN = GPO.GetAllGPODNList();
                 result.Result = AsyncCollection.GetInterestingACLAsync(gposDN).Result;
                 displayer.DisplayResult(result);
 
-                displayer.DisplayTitle("LAPS Password View Access");
+                IDisplay.DisplayTitle("LAPS Password View Access");
                 result.Result = DACL.GetLAPSACL();
                 displayer.DisplayResult(result);
             }
             else
             {
-                displayer.DisplayTitle($"DACL on {targetDn.ToUpper()}");
+                IDisplay.DisplayTitle($"DACL on {targetDn.ToUpper()}");
                 result.Result = new List<DACL> { DACL.GetACLOnObject(targetDn) };
                 displayer.DisplayResult(result);
             }
@@ -145,7 +153,7 @@ namespace ADCollector3
                 Title = "Group Policy Preference Passwords",
                 FileAttributes = new List<string> { "cpassword" }
             };
-            displayer.DisplayTitle(gppSearchString.Title);
+            IDisplay.DisplayTitle(gppSearchString.Title);
             if (!CanConnectSYSVOL) { return; }
 
             var xmlFileList = AsyncCollection.GetGPPXML().Result;
@@ -164,7 +172,7 @@ namespace ADCollector3
         public static void Collect(string title, List<DACL> dacl)
         {
             IDisplay displayer = new DisplayDACL();
-            displayer.DisplayTitle(title);
+            IDisplay.DisplayTitle(title);
             IResult result = new DACLResult { Result = dacl };
             displayer.DisplayResult(result);
 
@@ -195,7 +203,7 @@ namespace ADCollector3
 
             foreach (SearchString searchString in searchStringList)
             {
-                displayer.DisplayTitle(searchString.Title);
+                IDisplay.DisplayTitle(searchString.Title);
                 IResult result = collector.Collect(searchString);
                 displayer.DisplayResult(result);
             }
@@ -209,7 +217,7 @@ namespace ADCollector3
 
             if (t == typeof(Trust))
             {
-                displayer.DisplayTitle("Domain Trusts");
+                IDisplay.DisplayTitle("Domain Trusts");
                 var domainTrust = new Trust();
                 var trustResult = NativeMethod.GetDsEnumerateDomainTrusts();
                 var domainTrusts = domainTrust.AnalyzeTrust(trustResult);
@@ -223,25 +231,35 @@ namespace ADCollector3
         {
             var displayer = new DisplayADCS();
 
-            displayer.DisplayTitle("Certificate Services");
+            IDisplay.DisplayTitle("Certificate Services");
             ADCS.CertificateServices = AsyncCollection.GetADCSAsync().Result;
             displayer.DisplayResult(ADCS.CertificateServices);
 
 
-            displayer.DisplayTitle("Interesting Certificate Templates");
+            IDisplay.DisplayTitle("Interesting Certificate Templates");
             var certicateTemplates = AsyncCollection.GetInterestingCertTemplatesAsync().Result;
             displayer.DisplayResult(certicateTemplates);
+        }
+
+
+
+        public void GetTemplates()
+        {
+            var displayer = new DisplayADCS();
+            IDisplay.DisplayTitle("Certificate Templates");
+            var templates = AsyncCollection.GetAllCertTemplatesAsync();
+            displayer.DisplayResult(templates);
         }
 
 
         public void GetADIDNS()
         {
             var displayer = new DisplayADIDNS();
-            displayer.DisplayTitle("DNS Records in the Domain");
+            IDisplay.DisplayTitle("DNS Records in the Domain");
             var domainDNS = ADIDNS.GetDNS(false);
             displayer.DisplayResult(domainDNS);
 
-            displayer.DisplayTitle("DNS Records in the Forest");
+            IDisplay.DisplayTitle("DNS Records in the Forest");
             var forestDNS = ADIDNS.GetDNS(true);
             displayer.DisplayResult(forestDNS);
         }
@@ -250,7 +268,7 @@ namespace ADCollector3
         public static void GetHostSession(string host)
         {
             var displayer = new DisplayNativeMethod();
-            displayer.DisplayTitle($"Session Enum on {host}");
+            IDisplay.DisplayTitle($"Session Enum on {host}");
             var Results = NativeMethod.GetNetSessionEnum(host);
             displayer.DisplayNetSession(Results);
         }
@@ -259,7 +277,7 @@ namespace ADCollector3
         public static void GetHostUser(string host)
         {
             var displayer = new DisplayNativeMethod();
-            displayer.DisplayTitle($"User Enum on {host}");
+            IDisplay.DisplayTitle($"User Enum on {host}");
             var Results = NativeMethod.GetNetWkstaUserEnum(host);
             displayer.DisplayNetWkstaUserEnum(Results);
         }
@@ -268,7 +286,7 @@ namespace ADCollector3
         public static void GetHostGroupMember(string host, string group = "Administrators")
         {
             var displayer = new DisplayNativeMethod();
-            displayer.DisplayTitle($"Local Group Members Enum on {host} for {group}");
+            IDisplay.DisplayTitle($"Local Group Members Enum on {host} for {group}");
             var Results = NativeMethod.GetNetLocalGroupGetMembers(host, group);
             displayer.DisplayNetLocalGroupGetMembers(Results);
         }
@@ -278,13 +296,36 @@ namespace ADCollector3
         {
             if (user == null) { return; }
             var displayer = new DisplayDACL();
-            displayer.DisplayTitle($"Interesting ACL for {user.ToUpper()}");
+            IDisplay.DisplayTitle($"Interesting ACL for {user.ToUpper()}");
             DACLResult result = new DACLResult();
 
             var groups = new CollectNestedGroupMembership();
             groups.Collect(new NestedGMSearchString { SAMAccountName = user });
             var groupSIDs = CollectNestedGroupMembership.UserSIDNameDictionary[user.ToUpper()].Keys.ToList();
             result.Result = DACL.ACLScan(user, groupSIDs);
+
+            displayer.DisplayResult(result);
+        }
+
+
+
+        public void GetSchemaCount()
+        {
+            var displayer = new DisplayList();
+            IDisplay.DisplayTitle($"Scheme Attributes Count");
+            ListResult result = new ListResult();
+            var attrList = new List<string>(); 
+            var allAttrs = SchemaUtil.GetSchemaAttributes();
+            var attributes = SchemaUtil.GetUncommonSchemaAttributes(allAttrs);
+
+            //var attrResult = AsyncCollection.GetAttributeCount(attributes);
+            var attrResult = AsyncCollection.GetAttributeCountAsync(attributes);//.Result;
+            
+            foreach (var attr in attrResult)
+            {
+                if (attr != null){ attrList.Add(attr); }
+            }
+            result.Result = attrList;
 
             displayer.DisplayResult(result);
         }

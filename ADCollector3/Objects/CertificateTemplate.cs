@@ -26,6 +26,38 @@ namespace ADCollector3
         public DACL DACL;
         static Logger logger { get; set; } = LogManager.GetCurrentClassLogger();
 
+        public static CertificateTemplate GetAllCertTemplates(SearchResultEntry certTemplateResultEntry)
+        {
+            var enrollFlag = (msPKIEnrollmentFlag)Enum.Parse(typeof(msPKIEnrollmentFlag), certTemplateResultEntry.Attributes["mspki-enrollment-flag"][0].ToString());
+            var raSig = int.Parse(certTemplateResultEntry.Attributes["mspki-ra-signature"][0].ToString());
+            var certNameFlag = (msPKICertificateNameFlag)Enum.Parse(typeof(msPKICertificateNameFlag), (unchecked((uint)(Convert.ToInt32(certTemplateResultEntry.Attributes["mspki-certificate-name-flag"][0].ToString())))).ToString());
+            List<string> ekus = new List<string>();
+            List<string> ekuNames = new List<string>();
+
+            if (certTemplateResultEntry.Attributes.Contains("pkiextendedkeyusage"))
+            {
+                foreach (byte[] eku in certTemplateResultEntry.Attributes["pkiextendedkeyusage"])
+                {
+                    string ekuStr = Encoding.UTF8.GetString(eku);
+                    ekus.Add(ekuStr);
+                    ekuNames.Add(new Oid(ekuStr).FriendlyName);
+                }
+            }
+
+            return new CertificateTemplate
+            {
+                IsPublished = true,
+                //PublishedBy = "CA",//publishedBy,
+                CertNameFlag = certNameFlag,
+                RaSigature = raSig,
+                EnrollFlag = enrollFlag,
+                TemplateCN = certTemplateResultEntry.Attributes["cn"][0].ToString(),
+                TemplateDisplayName = certTemplateResultEntry.Attributes["displayName"][0].ToString(),
+                ExtendedKeyUsage = ekuNames,
+                DACL = DACL.GetACLOnObject(certTemplateResultEntry.DistinguishedName)//retrieve the complete DACL instead of interesting ACEs
+            };
+
+        }
         public static CertificateTemplate GetInterestingCertTemplates(SearchResultEntry certTemplateResultEntry)
         {
             bool isPublished = false;

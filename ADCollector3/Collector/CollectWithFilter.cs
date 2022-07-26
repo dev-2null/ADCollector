@@ -51,7 +51,7 @@ namespace ADCollector3
         public static Dictionary<string, List<string>> ProcessAttributes(SearchResultAttributeCollection collection)
         {
             Dictionary<string, List<string>> attributes = new Dictionary<string, List<string>>();
-            
+
 
             foreach (string attrName in collection.AttributeNames)
             {
@@ -71,6 +71,12 @@ namespace ADCollector3
                 else if (attrName.ToLower() == "objectsid" || attrName.ToLower() == "securityidentifier")
                 {
                     attributeValue.Add(ConvertByteArrayToSID((byte[])collection[attrName][0]));
+                }
+                else if (attrName.ToLower() == "userpassword" || attrName.ToLower() == "unixuserpassword" 
+                    || attrName.ToLower() == "unicodepwd" || attrName.ToLower() == "mssfu30password" 
+                    || attrName.ToLower() == "os400-password")
+                {
+                    attributeValue.Add(ConvertAscii(collection[attrName]));
                 }
                 else
                 {

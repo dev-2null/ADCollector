@@ -9,7 +9,7 @@ namespace ADCollector3
 {
     public abstract class IDisplay
     {
-        public void DisplayTitle(string Title)
+        public static void DisplayTitle(string Title)
         {
             DisplayUtil.Print(string.Format("\n[-] {0}:\n", Title), PrintColor.GREEN);
         }

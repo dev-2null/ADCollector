@@ -55,7 +55,19 @@ namespace ADCollector3
             else
             {
                 var adcollector = new ADCollector();
-                if (options.ADCS)
+                if (options.LDAPONLY)
+                {
+                    adcollector.GetLDAPOnly();
+                }
+                else if (options.SCHEMA)
+                {
+                    adcollector.GetSchemaCount();
+                }
+                else if (options.TEMPLATES)
+                {
+                    adcollector.GetTemplates();
+                }
+                else if (options.ADCS)
                 {
                     adcollector.GetADCS();
                 }

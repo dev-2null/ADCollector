@@ -82,6 +82,15 @@ namespace ADCollector3
         }
 
 
+        public static string ConvertAscii(DirectoryAttribute charArray)
+        {
+            string pwd = string.Empty;
+            foreach (char c in charArray)
+            {
+                pwd += Convert.ToChar((int)c);
+            }
+            return pwd;
+        }
 
         //https://support.microsoft.com/en-us/kb/243330
         public static string ConvertSIDToName(string sid)

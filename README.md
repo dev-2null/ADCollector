@@ -45,9 +45,11 @@ reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\H
 * Restricted Group
 * LAPS Password View Access
 * ADCS Configurations
+* Certificate Templates
 * Machine Owner
 * ACL Scan
 * Privileges Rights defined in Group Policies
+* User Credentials stored in LDAP
 
 
 ## Usage
@@ -60,7 +62,7 @@ PS C:\> .\ADCollector.exe --help
    / ___ \| |_| | |__| (_) | | |  __/ (__  | || (_) | |
   /_/   \_\____/ \____\___/|_|_|\___|\___| |__/\___/|_|
 
-  v3.0.0  by dev2null
+  v3.0.1  by dev2null
 
 
   --Domain            Domain to enumerate
@@ -70,8 +72,11 @@ PS C:\> .\ADCollector.exe --help
   --Password          Alternative Credential
   --DC                Alternative Domain Controller (Hostname/IP) to connect to
   --OU                Perform the Search under a specific Organizational Unit
+  --LDAPONLY          Only Enumearte Objects in LDAP
   --ACLScan           Perform ACL scan for an Identity
   --ADCS              (Default: false) Only Perform AD Certificate Service Check
+  --TEMPLATES         (Default: false) Only Enumerate All Certificate Templates with their DACL
+  --SCHEMA            (Default: false) Count Schema Attributes in the default naming context
   --ADIDNS            (Default: false) Only Collect ADIDNS Records
   --NGAGP             Only enumerate Nested Group Membership and Applied Group Policies on the target object
   --DACL              Enumerate DACL on the target object (with DistinguishedName)
@@ -88,10 +93,13 @@ Example: .\ADCollector.exe
          .\ADCollector.exe --OU IT
          .\ADCollector.exe --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --ADCS
+         .\ADCollector.exe --TEMPLATES
+         .\ADCollector.exe --LDAPOnly
+         .\ADCollector.exe --SCHEMA
          .\ADCollector.exe --ADIDNS
          .\ADCollector.exe --NGAGP samaccountname
          .\ADCollector.exe --DACL DC=domain,DC=net
-         .\ADCollector.exe --ACLScan samaccountname --OU OU=IT,DC=domain,DC=local
+         .\ADCollector.exe --ACLScan user --OU OU=IT,DC=domain,DC=local
          .\ADCollector.exe --SessionEnum --Host targetHost
          .\ADCollector.exe --UserEnum --Host targetHost
          .\ADCollector.exe --LocalGMEnum --Host targetHost --Group 'Remote Desktop Users'
@@ -103,6 +111,9 @@ Example: .\ADCollector.exe
 
 ## Changelog
 
+##### v 3.0.1:
+    1. Added enumeration for certificate templates, schema and user credentials
+    2. Added a few flags
 ##### v 3.0.0:
     1. Code Refactoring & Bug fix
     2. Added privielge rights and object DACL enumeration
