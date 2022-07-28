@@ -236,6 +236,14 @@ namespace ADCollector3
 
 
 
+            //Accounts Allow Reversible Password Encryption
+            LDAPSearchStringObjectList.Add(new object[]
+            {
+                "Accounts Allow Reversible Password Encryption", targetDN, @"(UserAccountControl:1.2.840.113556.1.4.803:=128)", new string[] { "sAMAccountName" }
+            });
+
+
+
             //Machine Owners
             LDAPSearchStringObjectList.Add(new object[]
             {
